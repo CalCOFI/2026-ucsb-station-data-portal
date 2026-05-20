@@ -1,5 +1,3 @@
-const API = 'http://localhost:8000';
-
 // --- Map ---
 const map = L.map('map', { center: [32.5, -119.5], zoom: 6 })
   .addLayer(L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -13,6 +11,379 @@ let markers = {};
 let activeCategory = null;
 let selectedVariable = null;
 let dropdownFocusIdx = -1;
+let stationSearchEnabled = true;
+
+function toggleStationSearch() {
+  stationSearchEnabled =
+    !stationSearchEnabled;
+
+  const btn =
+    document.getElementById(
+      'station-toggle'
+    );
+
+  if (btn) {
+
+    btn.textContent =
+      stationSearchEnabled
+        ? 'Station Search: ON'
+        : 'Station Search: OFF';
+  }
+}
+
+function usesStaId(datasetId) {
+
+  return [
+
+    "siocalcofiHydroCast",
+    "siocalcofiHydroBottle"
+
+  ].includes(datasetId);
+}
+
+function buildERDDAPUrl(variable) {
+
+  const dataset =
+    variable.dataset_id;
+
+  const base =
+    variable.source?.access_url ||
+    variable.url;
+
+  if (!base) return null;
+
+  const selected =
+    window.selectedVariables || [variable];
+
+  // selected variables from UI
+
+  const variableNames = selected
+    .filter(v => v.dataset_id === dataset)
+    .map(v => v.erddap_variable)
+    .filter(Boolean);
+
+  // required fields
+
+const fields = [
+
+  "time",
+
+  "latitude",
+
+  "longitude"
+];
+
+if (
+  usesStaId(dataset)
+) {
+
+  fields.push("sta_id");
+
+} else {
+
+  fields.push("line");
+  fields.push("station");
+}
+
+fields.push(...variableNames);
+
+  let url =
+    `https://oceanview.pfeg.noaa.gov/erddap/tabledap/${dataset}.html?` +
+    encodeURIComponent(fields.join(","));
+
+  if (
+    stationSearchEnabled &&
+    window.currentStation
+  ) {
+
+    const s = window.currentStation;
+
+    // CASE 1 — sta_id exists
+
+    if (
+  usesStaId(dataset)
+) {
+
+  // SIO hydro datasets
+
+  url +=
+    `&sta_id=` +
+    encodeURIComponent(
+      `"${s.station_id}"`
+    );
+}
+
+else {
+
+  // NOAA datasets use line/station
+
+  const parsed =
+    parseStationId(
+      s.station_id
+    );
+
+  if (parsed) {
+
+    url +=
+      `&line=` +
+      encodeURIComponent(
+        parsed.line
+      );
+
+    url +=
+      `&station=` +
+      encodeURIComponent(
+        parsed.station
+      );
+  }
+}
+  }
+
+  // selected variable constraints
+
+  selected.forEach(v => {
+
+    if (
+      v.constraint_min !== undefined &&
+      v.erddap_variable
+    ) {
+
+      url +=
+        `&${encodeURIComponent(v.erddap_variable + ">=")}` +
+        `${encodeURIComponent(v.constraint_min)}`;
+    }
+
+    if (
+      v.constraint_max !== undefined &&
+      v.erddap_variable
+    ) {
+
+      url +=
+        `&${encodeURIComponent(v.erddap_variable + "<=")}` +
+        `${encodeURIComponent(v.constraint_max)}`;
+    }
+  });
+
+  return url;
+}
+
+
+function buildEuphausiidUrl(variable) {
+
+  const station =
+    window.currentStation;
+
+  const parsed =
+    parseStationId(
+      station?.station_id
+    );
+
+  const params =
+    new URLSearchParams();
+
+  params.set("mode", "save");
+
+  params.set("beginYear", "1955");
+  params.set("endYear", "2010");
+
+  for (let m = 1; m <= 12; m++) {
+    params.append("month[]", m);
+  }
+
+  params.append("cruise[]", "");
+
+  params.set("timeType", "all");
+
+  params.set(
+    "locType",
+    stationSearchEnabled
+      ? "station"
+      : "all"
+  );
+
+  if (
+    stationSearchEnabled &&
+    parsed
+  ) {
+
+    params.set(
+      "beginLine",
+      parsed.line
+    );
+
+    params.set(
+      "endLine",
+      parsed.line
+    );
+
+    params.set(
+      "beginStation",
+      parsed.station
+    );
+
+    params.set(
+      "endStation",
+      parsed.station
+    );
+  }
+
+  params.append(
+    "GS[]",
+    variable.variable_name
+  );
+
+  params.append(
+    "PS[]",
+    ".*"
+  );
+
+  params.set("sex", "%male");
+
+  params.set("beginSize", "");
+  params.set("endSize", "");
+
+  params.set(
+    "calcType",
+    "individual"
+  );
+
+  params.set(
+    "calcUnit",
+    "m2"
+  );
+
+  params.set("paginate", "1");
+  params.set("nlines", "100");
+
+  return (
+    "https://oceaninformatics.ucsd.edu/euphausiid/save.php?" +
+    params.toString()
+  );
+}
+
+
+function buildZooDBUrl(variable) {
+
+  const station =
+    window.currentStation;
+
+  const parsed =
+    parseStationId(
+      station?.station_id
+    );
+
+  const params =
+    new URLSearchParams();
+
+  params.set("mode", "save");
+
+  params.set("beginYear", "2000");
+  params.set("endYear", "2010");
+
+  for (let m = 1; m <= 12; m++) {
+    params.append("month[]", m);
+  }
+
+  params.append("cruise[]", "");
+
+  params.set("timeType", "all");
+
+  params.set(
+    "locType",
+    stationSearchEnabled
+      ? "station"
+      : "region"
+  );
+
+  if (
+    stationSearchEnabled &&
+    parsed
+  ) {
+
+    params.set(
+      "beginLine",
+      parsed.line
+    );
+
+    params.set(
+      "endLine",
+      parsed.line
+    );
+
+    params.set(
+      "beginStation",
+      parsed.station
+    );
+
+    params.set(
+      "endStation",
+      parsed.station
+    );
+  }
+
+  if (
+    variable.taxonomy?.higher_taxonomy
+  ) {
+
+    params.append(
+      "HT[]",
+      variable.taxonomy.higher_taxonomy
+    );
+  }
+
+  params.append(
+    "GS[]",
+    variable.variable_name
+  );
+
+  params.append("PS[]", ".*");
+
+  params.set("beginSize", "");
+  params.set("endSize", "");
+
+  params.set(
+    "calcType",
+    "individual"
+  );
+
+  params.set(
+    "calcUnit",
+    "m2"
+  );
+
+  params.set("pooled", "0");
+
+  return (
+    "https://oceaninformatics.ucsd.edu/zoodb/save.php?" +
+    params.toString()
+  );
+}
+
+function parseStationId(stationId) {
+
+  if (!stationId)
+    return null;
+
+  const clean =
+    stationId
+      .replace(/"/g, "")
+      .trim();
+
+  const parts =
+    clean.split(/\s+/);
+
+  if (parts.length !== 2)
+    return null;
+
+  return {
+
+    line:
+      parts[0],
+
+    station:
+      parts[1]
+  };
+}
 
 // --- Station markers ---
 function makeMarkerStyle(highlighted) {
@@ -30,46 +401,296 @@ function dimMarkerStyle() {
   return { fillColor: '#0d2a40', color: '#0d4060', fillOpacity: 0.2, radius: 5 };
 }
 
-async function loadStations() {
-  console.log("LOADING STATIONS");
-  try {
-    const res = await fetch("/data/stations.json");
-    const data = await res.json();
+function openStation(station) {
 
-    const stations = Array.isArray(data) ? data : data?.data;
+  window.currentStation = station;
 
-    if (!Array.isArray(stations)) {
-      console.error("Stations format invalid:", data);
-      return;
-    }
+  document.getElementById(
+    'panel-empty'
+  ).style.display = 'none';
 
-    stations.forEach(station => {
-      if (!station.lat || !station.lon) return;
+  document.getElementById(
+    'panel-header'
+  ).style.display = 'block';
 
-      const marker = L.circleMarker([station.lat, station.lon], {
-        radius: 10,
-        color: '#00c2ff',
-        fillOpacity: 0.7
-      }).addTo(map);
-      markers[station.station_id] = marker;
+  document.getElementById(
+    'panel-station-id'
+  ).textContent =
+    `Station ${station.station_id}`;
 
-      marker.on('click', () => openStation(station));
+  document.getElementById(
+    'panel-coords'
+  ).textContent =
+    `${station.lat.toFixed(4)}°N ` +
+    `${Math.abs(station.lon).toFixed(4)}°W`;
+
+  const content =
+    document.getElementById(
+      'panel-content'
+    );
+
+  content.classList.add('visible');
+
+  // FILTER VARIABLES FROM STATIC JSON
+
+  const stationVariables =
+    allVariables.filter(v => {
+
+      // station toggle OFF
+
+      if (!stationSearchEnabled)
+        return true;
+
+      // station-based matching
+
+      return (
+        v.station_ids &&
+        v.station_ids.includes(
+          station.station_id
+        )
+      );
     });
 
-  } catch (err) {
-    console.error("Failed to load stations:", err);
-  }
+  // GROUP
+
+  const bySource = {};
+
+  stationVariables.forEach(v => {
+
+    const source =
+      v.provider || "Unknown";
+
+    const category =
+      v.entity_type || "Other";
+
+    if (!bySource[source])
+      bySource[source] = {};
+
+    if (!bySource[source][category])
+      bySource[source][category] = [];
+
+    bySource[source][category]
+      .push(v);
+  });
+
+  content.innerHTML =
+    Object.entries(bySource)
+      .map(([source, cats]) => `
+
+      <div class="source-group">
+
+        <div class="source-label">
+          📦 ${source}
+        </div>
+
+        ${Object.entries(cats)
+          .map(([cat, vars]) => `
+
+          <div class="category-sublabel">
+            ${cat}
+          </div>
+
+          ${vars.map(v => `
+
+            <div class="data-link"
+                 onclick='openModal(${JSON.stringify(v)})'>
+
+              <span class="data-link-name">
+                ${v.display_name}
+              </span>
+
+            </div>
+
+          `).join('')}
+
+        `).join('')}
+
+      </div>
+
+    `).join('');
 }
 
+async function loadStations() {
+
+  try {
+
+    const res = await fetch(
+      "./data/stations.json"
+    );
+
+    const stations =
+      await res.json();
+
+    // =================================================
+    // STORE GLOBALLY
+    // =================================================
+
+    window.allStations = stations;
+
+    window.stationMap = {};
+
+    // =================================================
+    // CLEAR OLD MARKERS
+    // =================================================
+
+    if (window.stationLayer) {
+
+      map.removeLayer(
+        window.stationLayer
+      );
+    }
+
+    window.stationLayer =
+      L.layerGroup().addTo(map);
+
+    // =================================================
+    // BUILD MARKERS
+    // =================================================
+
+    stations.forEach(station => {
+
+      // lookup map
+
+      window.stationMap[
+        station.station_id
+      ] = station;
+
+      // validate coordinates
+
+      if (
+        station.lat == null ||
+        station.lon == null
+      ) {
+        return;
+      }
+
+      const marker =
+        L.circleMarker(
+          [station.lat, station.lon],
+          {
+            radius: 4,
+            fillColor: "#4db6ff",
+            color: "#ffffff",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.9
+          }
+        );
+
+      // IMPORTANT
+
+      marker.stationData =
+        station;
+
+      // CLICK HANDLER
+
+      marker.on("click", () => {
+
+        openStation(station);
+      });
+
+      // store marker reference
+
+      station.marker = marker;
+
+      marker.addTo(
+        window.stationLayer
+      );
+    });
+
+    console.log(
+      `Loaded ${stations.length} stations`
+    );
+
+  } catch (err) {
+
+    console.error(
+      "Failed loading stations:",
+      err
+    );
+  }
+}
 // --- Variables + categories ---
 async function loadVariables() {
-  const res = await fetch("/data/variables.json");
-  allVariables = await res.json();
-  document.getElementById('variable-count').textContent = allVariables.length;
 
-  // const catRes = await fetch(`${API}/categories`);
-  // const categories = await catRes.json();
-  // renderCategoryFilters(categories);
+  try {
+
+    const res = await fetch(
+      "./data/variables.json"
+    );
+
+    const variables =
+      await res.json();
+
+    // =================================================
+    // STORE GLOBALLY
+    // =================================================
+
+    window.allVariables = variables;
+
+    window.variableMap = {};
+
+    // selected variables
+
+    window.selectedVariables = [];
+
+    // =================================================
+    // BUILD LOOKUP MAP
+    // =================================================
+
+    variables.forEach(v => {
+
+      // IMPORTANT
+
+      v.variable_id =
+        v.variable_id ||
+        `${v.dataset_id}::${v.variable_name}`;
+
+      window.variableMap[
+        v.variable_id
+      ] = v;
+
+      // normalize arrays
+
+      v.station_ids =
+        v.station_ids || [];
+
+      v.keywords =
+        v.keywords || [];
+
+      v.science_concepts =
+        v.science_concepts || [];
+
+      // normalize fields
+
+      v.display_name =
+        v.display_name ||
+        v.variable_name;
+
+      v.provider =
+        v.provider ||
+        "Unknown";
+
+      v.entity_type =
+        v.entity_type ||
+        "Other";
+
+      v.platform =
+        v.platform ||
+        "external";
+    });
+
+    console.log(
+      `Loaded ${variables.length} variables`
+    );
+
+  } catch (err) {
+
+    console.error(
+      "Failed loading variables:",
+      err
+    );
+  }
 }
 
 // function renderCategoryFilters(categories) {
@@ -118,41 +739,36 @@ searchInput.addEventListener('blur', () => {
   setTimeout(closeDropdown, 150);
 });
 
-function renderDropdown(query) {
-  const q = query.toLowerCase();
-  let matches = allVariables.filter(v => v.name.toLowerCase().includes(q));
+function renderDropdown(filtered = null) {
 
-  // also filter by active category if set
-  if (activeCategory) matches = matches.filter(v => v.category === activeCategory);
+  const list =
+    document.getElementById(
+      "dropdown-list"
+    );
 
-  dropdown.innerHTML = '';
-  if (matches.length === 0) {
-    dropdown.innerHTML = '<div class="dropdown-empty">No variables found</div>';
-    dropdown.classList.add('open');
-    return;
-  }
+  const vars =
+    filtered || window.allVariables;
 
-  matches.slice(0, 30).forEach((v, i) => {
-    const item = document.createElement('div');
-    item.className = 'dropdown-item';
-    item.dataset.idx = i;
+  list.innerHTML = vars.map(v => `
 
-    // Highlight matching part of name
-    const nameHtml = v.name.replace(new RegExp(`(${escapeRe(query)})`, 'gi'), '<mark>$1</mark>');
+    <div class="dropdown-item"
+         onclick='selectVariable("${v.variable_id}")'>
 
-    item.innerHTML = `
-      <span class="dropdown-name">${nameHtml}</span>
-      <span class="dropdown-meta">
-        <span class="dropdown-category">${v.category}</span>
-        <span class="dropdown-source">· ${v.source}</span>
-        <span class="dropdown-count">(${v.station_count})</span>
-      </span>`;
+      <div class="dropdown-title">
+        ${v.display_name}
+      </div>
 
-    item.addEventListener('mousedown', () => selectVariable(v));
-    dropdown.appendChild(item);
-  });
+      <div class="dropdown-meta">
 
-  dropdown.classList.add('open');
+        ${v.provider}
+        •
+        ${v.entity_type}
+
+      </div>
+
+    </div>
+
+  `).join("");
 }
 
 function updateDropdownFocus(items) {
@@ -165,18 +781,26 @@ function closeDropdown() {
   dropdownFocusIdx = -1;
 }
 
-function selectVariable(variable) {
-  selectedVariable = variable;
-  searchInput.value = variable.name;
-  closeDropdown();
+function selectVariable(variableId) {
 
-  const ids = new Set(variable.station_ids);
-  highlightStations(ids);
+  const variable =
+    window.variableMap[
+      variableId
+    ];
 
-  const banner = document.getElementById('search-banner');
-  banner.textContent = `${ids.size} stations have "${variable.name}" (${variable.category} · ${variable.source})`;
-  banner.classList.add('visible');
-  document.getElementById('clear-btn').classList.add('visible');
+  if (!variable) return;
+
+  window.selectedVariables =
+    [variable];
+
+  console.log(
+    "Selected variable:",
+    variable
+  );
+
+  highlightStations(variable);
+
+  openModal(variable);
 }
 
 function escapeRe(str) {
@@ -207,14 +831,34 @@ function toggleCategory(cat, btn) {
 }
 
 // --- Highlight stations ---
-function highlightStations(ids) {
-  allStations.forEach(s => {
-    const m = markers[s.station_id];
-    if (!m) return;
-    if (ids.size === 0 || ids.has(s.station_id)) {
-      m.setStyle(makeMarkerStyle(true));
-    } else {
-      m.setStyle(dimMarkerStyle());
+function highlightStations(variable) {
+
+  clearHighlights();
+
+  if (
+    !variable.station_ids
+  ) return;
+
+  variable.station_ids.forEach(id => {
+
+    const station =
+      window.stationMap[id];
+
+    if (
+      station &&
+      station.marker
+    ) {
+
+      station.marker.setStyle({
+
+        radius: 7,
+
+        fillColor: "#ffcc00",
+
+        color: "#ffffff",
+
+        weight: 2
+      });
     }
   });
 }
@@ -234,9 +878,6 @@ function clearAll() {
   document.getElementById('clear-btn').classList.remove('visible');
 }
 
-function isERDDAP(url) {
-  return url && url.includes("erddap/tabledap");
-}
 
 function openModal(v) {
   const modalBackdrop = document.getElementById('modal-backdrop');
@@ -309,142 +950,59 @@ function openModal(v) {
       </div>`;
   }
 
-  // ---------- FOOTER LOGIC ----------
-  const isERDDAP = v.url && v.url.includes("erddap/tabledap");
+  
 
-//   if (isERDDAP) {
-//     const dataset = v.url.split("tabledap/")[1]?.split(".")[0];
-//     const variable = v.erddap_variable;
+let finalUrl = null;
 
-//     footer.innerHTML = `
-//       <div style="width:100%;display:flex;flex-direction:column;gap:8px;">
-        
-//         <a class="btn-docs"
-//            href="${v.url}"
-//            target="_blank"
-//            style="text-align:center">
-//           View Dataset ↗
-//         </a>
+if (v.platform === "erddap") {
 
-//         <a id="erddap-download"
-//            class="btn-download"
-//            target="_blank"
-//            style="text-align:center">
-//           ⬇ Download CSV (this station)
-//         </a>
-
-//       </div>
-//     `;
-
-//     // Build station-aware query (if available)
-//     if (window.currentStation && dataset && variable) {
-//       const s = window.currentStation;
-
-//       const query =
-//         `https://coastwatch.pfeg.noaa.gov/erddap/tabledap/${dataset}.csv?` +
-//         `${variable},latitude,longitude,time` +
-//         `&latitude>=${s.lat - 0.1}&latitude<=${s.lat + 0.1}` +
-//         `&longitude>=${s.lon - 0.1}&longitude<=${s.lon + 0.1}`;
-
-//       document.getElementById('erddap-download').href = query;
-//     } else {
-//       document.getElementById('erddap-download').href = v.url;
-//     }
-
-//   } else {
-//     footer.innerHTML = `
-//       <a class="btn-docs"
-//          href="${v.url}"
-//          target="_blank"
-//          style="flex:1;text-align:center">
-//         View Data Source ↗
-//       </a>
-//     `;
-//   }
-
-if (isERDDAP) {
-
-  const dataset = v.url.split("tabledap/")[1]?.split(".")[0];
-  const variable = v.erddap_variable;
-
-  console.log("current station:", window.currentStation);
-  console.log("ERDDAP variable:", variable);
-
-  let erddapPage =
-    `https://coastwatch.pfeg.noaa.gov/erddap/tabledap/${dataset}.html?` +
-    `${variable},sta_id,time,latitude,longitude`;
-
-  if (window.currentStation?.station_id) {
-
-    const stationConstraint =
-      encodeURIComponent(`"${window.currentStation.station_id}"`);
-
-    console.log("station constraint:", stationConstraint);
-
-    erddapPage += `&sta_id=${stationConstraint}`;
-  }
-
-  console.log("ERDDAP URL:", erddapPage);
-
-  footer.innerHTML = `
-    <div style="width:100%;display:flex;flex-direction:column;gap:8px;">
-
-      <a class="btn-docs"
-         href="${erddapPage}"
-         target="_blank"
-         style="text-align:center">
-        Open Dataset ↗
-      </a>
-
-    </div>
-  `;
+  finalUrl =
+    buildERDDAPUrl(v);
 }
 
-  modalBackdrop.classList.add('open');
+else if (
+  v.dataset_id === "euphausiid"
+) {
+
+  finalUrl =
+    buildEuphausiidUrl(v);
 }
 
-function closeModal(e) {
-  if (e && e.target !== document.getElementById('modal-backdrop')) return;
-  document.getElementById('modal-backdrop').classList.remove('open');
+else if (
+  v.dataset_id === "zoodb"
+) {
+
+  finalUrl =
+    buildZooDBUrl(v);
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('modal-backdrop').classList.remove('open'); });
-async function openStation(station) {
-  window.currentStation = station;
-  document.getElementById('panel-empty').style.display = 'none';
-  document.getElementById('panel-header').style.display = 'block';
-  document.getElementById('panel-station-id').textContent = `Station ${station.station_id}`;
-  document.getElementById('panel-coords').textContent =
-    `${station.lat.toFixed(4)}°N  ${Math.abs(station.lon).toFixed(4)}°W`;
+else {
 
-  const content = document.getElementById('panel-content');
-  content.classList.add('visible');
-  content.innerHTML = '<div class="loading">Loading data…</div>';
+  finalUrl =
+    v.source?.access_url ||
+    v.url;
+}
 
-  const res = await fetch(`${API}/stations/${encodeURIComponent(station.station_id)}`);
-  const data = await res.json();
+footer.innerHTML = `
 
-  // Group by source, then category
-  const bySource = {};
-  data.data.forEach(d => {
-    if (!bySource[d.source]) bySource[d.source] = {};
-    if (!bySource[d.source][d.category]) bySource[d.source][d.category] = [];
-    bySource[d.source][d.category].push(d);
-  });
+  <div style="
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  ">
 
-  content.innerHTML = Object.entries(bySource).map(([source, cats]) => `
-    <div class="source-group">
-      <div class="source-label">📦 ${source}</div>
-      ${Object.entries(cats).map(([cat, vars]) => `
-        <div class="category-sublabel">${cat}</div>
-        ${vars.map((v, i) => `
-          <div class="data-link" onclick='openModal(${JSON.stringify(v)})'>
-            <span class="data-link-name">${v.name}</span>
-            <span class="data-link-unit">${v.unit}</span>
-            <span class="data-link-arrow">⬇</span>
-          </div>`).join('')}
-      `).join('')}
-    </div>`).join('');
+    <a class="btn-docs"
+       href="${finalUrl}"
+       target="_blank"
+       style="text-align:center">
+
+      Open Dataset ↗
+
+    </a>
+
+  </div>
+`;
 }
 
 // --- Boot ---
