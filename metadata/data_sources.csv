@@ -1,5 +1,5 @@
 ﻿dataset_id,name,url,platform,base_url,station_based
-erdCalCOFIcufes,CalCOFI NOAA Continuous Underway Fish-Egg Sampler (CUFES),https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIcufes.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+erdCalCOFIcufes,CalCOFI NOAA Continuous Underway Fish-Egg Sampler (CUFES),https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIcufes.html,erddap,https://coastwatch.pfeg.noaa.gov/,FALSE
 erdCalCOFIeggcnt,CalCOFI NOAA Fish Egg Counts ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIeggcnt.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
 erdCalCOFIeggstg,CalCOFI NOAA Fish Egg Stages ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIeggstg.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
 erdCalCOFIinvcnt,Invertebrate count (Cephalopods),https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIinvcnt.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE

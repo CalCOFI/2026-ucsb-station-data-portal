@@ -11,25 +11,9 @@ let markers = {};
 let activeCategory = null;
 let selectedVariable = null;
 let dropdownFocusIdx = -1;
-let stationSearchEnabled = true;
+let stationGroups = {};
+let selectedStation = null;
 
-function toggleStationSearch() {
-  stationSearchEnabled =
-    !stationSearchEnabled;
-
-  const btn =
-    document.getElementById(
-      'station-toggle'
-    );
-
-  if (btn) {
-
-    btn.textContent =
-      stationSearchEnabled
-        ? 'Station Search: ON'
-        : 'Station Search: OFF';
-  }
-}
 
 function usesStaId(datasetId) {
 
@@ -39,6 +23,22 @@ function usesStaId(datasetId) {
     "siocalcofiHydroBottle"
 
   ].includes(datasetId);
+}
+
+async function loadStationGroups() {
+
+  const response =
+    await fetch(
+      "./data/station_groups.json"
+    );
+
+  window.stationGroups =
+    await response.json();
+
+  console.log(
+    Object.keys(
+      window.stationGroups
+    ))
 }
 
 function buildERDDAPUrl(variable) {
@@ -91,9 +91,7 @@ function buildERDDAPUrl(variable) {
     `https://oceanview.pfeg.noaa.gov/erddap/tabledap/${dataset}.html?` +
     encodeURIComponent(fields.join(","));
 
-  if (
-    stationSearchEnabled &&
-    window.currentStation
+  if (window.currentStation
   ) {
 
     const s = window.currentStation;
@@ -194,17 +192,9 @@ function buildEuphausiidUrl(variable) {
 
   params.set("timeType", "all");
 
-  params.set(
-    "locType",
-    stationSearchEnabled
-      ? "station"
-      : "all"
-  );
+  params.set("locType", "station");
 
-  if (
-    stationSearchEnabled &&
-    parsed
-  ) {
+  if (parsed) {
 
     params.set(
       "beginLine",
@@ -288,36 +278,28 @@ function buildZooDBUrl(variable) {
 
   params.set("timeType", "all");
 
-  params.set(
-    "locType",
-    stationSearchEnabled
-      ? "station"
-      : "region"
-  );
+  params.set("locType", "station");
 
-  if (
-    stationSearchEnabled &&
-    parsed
-  ) {
+  if (parsed) {
 
     params.set(
       "beginLine",
-      parsed.line
+      parsed.line - 1
     );
 
     params.set(
       "endLine",
-      parsed.line
+      parsed.line + 1
     );
 
     params.set(
       "beginStation",
-      parsed.station
+      parsed.station - 1
     );
 
     params.set(
       "endStation",
-      parsed.station
+      parsed.station + 1
     );
   }
 
@@ -361,13 +343,11 @@ function buildZooDBUrl(variable) {
 
 function normalizeStationId(id) {
 
-  if (!id)
-    return "";
+  if (!id) return "";
 
-  return id
+  return String(id)
     .replace(/"/g, "")
-    .trim()
-    .replace(/\s+/g, " ");
+    .trim();
 }
 
 function parseStationId(stationId) {
@@ -397,26 +377,10 @@ function parseStationId(stationId) {
 }
 
 
-
-// --- Station markers ---
-function makeMarkerStyle(highlighted) {
-  return {
-    radius: highlighted ? 9 : 7,
-    fillColor: highlighted ? '#00c2ff' : '#1a4a6e',
-    color: highlighted ? '#00ffb3' : '#0d7aad',
-    weight: 1.5,
-    fillOpacity: highlighted ? 0.95 : 0.7,
-    opacity: 1,
-  };
-}
-
-function dimMarkerStyle() {
-  return { fillColor: '#0d2a40', color: '#0d4060', fillOpacity: 0.2, radius: 5 };
-}
-
 function openStation(station) {
 
-  window.currentStation = station;
+ window.currentStation =
+  station;
 
   document.getElementById(
     'panel-empty'
@@ -446,27 +410,19 @@ function openStation(station) {
 
   // FILTER VARIABLES FROM STATIC JSON
 
+  const key =
+    normalizeStationId(station.station_id);
+
   const stationVariables =
-    allVariables.filter(v => {
 
-      // station toggle OFF
+    window.stationVariableMap?.[
+    key
+    ] || [];
 
-      if (!stationSearchEnabled)
-        return true;
-
-      // station-based matching
-
-      return (
-        v.station_ids &&
-        (v.station_ids || []).some(id =>
-
-          normalizeStationId(id) ===
-          normalizeStationId(
-            station.station_id
-          )
-        )
-      );
-    });
+  console.log(
+    key,
+    stationVariables.length
+  );
 
   // GROUP
 
@@ -510,7 +466,7 @@ function openStation(station) {
           ${vars.map(v => `
 
             <div class="data-link"
-                 onclick='openModal(${JSON.stringify(v)})'>
+                 onclick='handleVariableClick("${v.variable_id}")'>
 
               <span class="data-link-name">
                 ${v.display_name}
@@ -573,8 +529,9 @@ async function loadStations() {
 
       // lookup map
 
+
       window.stationMap[
-        station.station_id
+        station.station_key
       ] = station;
 
       // validate coordinates
@@ -601,9 +558,60 @@ async function loadStations() {
       marker.stationData =
         station;
 
+      marker.bindTooltip(
+
+        station.station_id,
+
+        {
+
+          direction: "top",
+
+          offset: [0, -8],
+
+          opacity: 0.9,
+
+          sticky: true
+        }
+      );
+
       // CLICK HANDLER
 
       marker.on("click", () => {
+
+        if (selectedVariable) {
+
+          window.currentStation =
+            station;
+
+          openStation(station);
+
+          openVariableModal(
+            selectedVariable
+          );
+
+          return;
+        }
+
+        // restore previous selected station
+
+        if (
+          window.selectedStation?.marker
+        ) {
+
+          restoreMarkerStyle(
+            window.selectedStation.marker
+          );
+        }
+
+        // set new selected station
+
+        window.selectedStation = station;
+
+        applySelectedStyle(
+          station.marker
+        );
+
+        // normal station workflow
 
         openStation(station);
       });
@@ -614,6 +622,12 @@ async function loadStations() {
 
       marker.addTo(
         window.stationLayer
+      );
+
+      console.log(
+        "station id",
+        station.station_id, "station key",
+        station.station_key
       );
     });
 
@@ -628,6 +642,7 @@ async function loadStations() {
       err
     );
   }
+
 }
 // --- Variables + categories ---
 async function loadVariables() {
@@ -659,26 +674,53 @@ async function loadVariables() {
     )
     window.variableMap = {};
 
-  variables.forEach(v => {
+    window.stationVariableMap = {};
 
-    const variableId =
-      (
-        v.variable_id ||
-        `${v.dataset_id}::${v.variable_name}`
-      )
-      .trim()
-      .toLowerCase();
+    variables.forEach(v => {
 
-    v.variable_id = variableId;
+      const variableId =
+        (
+          v.variable_id ||
+          `${v.dataset_id}::${v.variable_name}`
+        )
+          .trim()
+          .toLowerCase();
 
-    v.station_ids =
-      v.station_ids || [];
+      v.variable_id = variableId;
 
-    window.variableMap[
-      variableId
-    ] = v;
-  })
-    ;
+      v.station_ids =
+        window.stationGroups?.[
+        v.station_group
+        ] || [];
+
+      v.station_ids.forEach(id => {
+
+        const key =
+          normalizeStationId(id);
+
+        if (
+          !window.stationVariableMap[
+          key
+          ]
+        ) {
+
+          window.stationVariableMap[
+            key
+          ] = [];
+        }
+
+        window.stationVariableMap[
+          key
+        ].push(v);
+      });
+
+      window.variableMap[
+        variableId
+      ] = v;
+
+
+    })
+      ;
 
   } catch (err) {
 
@@ -696,6 +738,7 @@ const dropdown = document.getElementById('dropdown');
 
 dropdown.addEventListener("mousedown", (e) => {
 
+  clearAll();
   const item = e.target.closest(".dropdown-item");
 
   if (!item) return;
@@ -710,12 +753,23 @@ searchInput.addEventListener("input", (e) => {
   renderDropdown(e.target.value);
 });
 
-searchInput.addEventListener('input', () => {
-  const q = searchInput.value.trim();
-  dropdownFocusIdx = -1;
-  if (!q) { closeDropdown(); clearHighlights(); return; }
+// searchInput.addEventListener('input', () => {
+//   const q = searchInput.value.trim();
+//   dropdownFocusIdx = -1;
+//   if (!q) { closeDropdown(); clearHighlights(); return; }
+//   openDropdown();
+//   renderDropdown(q);
+// });
+
+searchInput.addEventListener('focus', () => {
   openDropdown();
-  renderDropdown(q);
+  renderDropdown(searchInput.value.trim());
+});
+
+searchInput.addEventListener('input', () => {
+  dropdownFocusIdx = -1;
+  openDropdown();
+  renderDropdown(searchInput.value.trim());
 });
 
 searchInput.addEventListener('keydown', e => {
@@ -787,23 +841,55 @@ function renderDropdown(searchTerm = "") {
     return text.includes(searchTerm.toLowerCase());
   });
 
-  if (filtered.length === 0 || !searchTerm) {
-    list.innerHTML = "";
-    list.classList.remove("open");
-    return;
-  }
+  // if (filtered.length === 0 || !searchTerm) {
+  //   list.innerHTML = "";
+  //   list.classList.remove("open");
+  //   return;
+  // }
+
+  const results =
+    searchTerm
+      ? filtered
+      : vars.slice(0, 100);
 
   list.classList.add("open");
 
-  list.innerHTML = filtered.map(v => `
-    <div class="dropdown-item"
-         data-id="${v.variable_id}">
+  // list.innerHTML = filtered.map(v => `
+  //   <div class="dropdown-item"
+  //        data-id="${v.variable_id}">
 
-      <div class="dropdown-title">
-        ${v.display_name}
-      </div>
+  //     <div class="dropdown-title">
+  //       ${v.display_name}
+  //     </div>
 
+  if (results.length === 0) {
+    list.innerHTML = `
+    <div class="dropdown-empty">
+      No variables found
+    </div>
+  `;
+    return;
+  }
 
+  list.innerHTML = results.map(v => `
+<div class="dropdown-item"
+       data-id="${v.variable_id}">
+
+    <div class="dropdown-name">
+
+      ${v.display_name}
+
+      <span style="
+        color: var(--muted);
+        margin-left: 6px;
+        font-size: 10px;
+      ">
+
+        | ${v.dataset_name || v.provider || v.dataset_id} | Station based: ${v.station_based}
+
+      </span>
+
+    </div>
     </div>
   `).join("");
 }
@@ -827,60 +913,313 @@ document.getElementById("dropdown").addEventListener("mousedown", (e) => {
 
 
 
+// function selectVariable(variableId) {
+
+//   const v =
+//     window.allVariables.find(v => v.variable_id === variableId);
+
+//   console.log(v)
+
+//   if (!v) {
+
+//     console.error(
+//       "Variable not found:",
+//       variableId
+//     );
+
+//     console.log(
+//       "Available keys sample:",
+//       Object.keys(
+//         window.variableMap || {}
+//       ).slice(0, 10)
+//     );
+
+//     return;
+//   }
+
+
+//   highlightStations(v);
+
+//   openVariableModal(v);
+// }
+
+function styleDefaultStation(marker) {
+
+  marker.setStyle({
+
+    radius: 10,
+
+    fillColor: "#00c2ff",
+
+    color: "#0d7aad",
+
+    weight: 2,
+
+    fillOpacity: 0.7,
+  });
+}
+
+
+
+function darkenColor(hex, factor = 0.75) {
+
+  if (!hex) return hex;
+
+  hex = hex.replace("#", "");
+
+  const r = parseInt(
+    hex.substring(0, 2),
+    16
+  );
+
+  const g = parseInt(
+    hex.substring(2, 4),
+    16
+  );
+
+  const b = parseInt(
+    hex.substring(4, 6),
+    16
+  );
+
+  const darkened = [
+
+    Math.floor(r * factor),
+
+    Math.floor(g * factor),
+
+    Math.floor(b * factor * factor)
+
+  ];
+
+  return (
+    "#" +
+    darkened
+      .map(v =>
+        v
+          .toString(16)
+          .padStart(2, "0")
+      )
+      .join("")
+  );
+}
+
+function applySelectedStyle(marker) {
+
+  const currentStyle =
+    marker.options;
+
+  // save original style
+
+  marker._previousStyle = {
+
+    fillColor:
+      currentStyle.fillColor,
+
+    color:
+      currentStyle.color,
+
+    radius:
+      currentStyle.radius,
+
+    weight:
+      currentStyle.weight,
+
+    fillOpacity:
+      currentStyle.fillOpacity
+  };
+
+  marker.setStyle({
+
+    fillColor: darkenColor(
+      currentStyle.fillColor
+    ),
+
+    color: darkenColor(
+      currentStyle.color || "#ffffff"
+    ),
+
+    radius:
+      (currentStyle.radius || 6) + 1,
+
+    weight:
+      (currentStyle.weight || 1.5) + 1
+  });
+}
+
+function restoreMarkerStyle(marker) {
+
+  if (!marker?._previousStyle)
+    return;
+
+  marker.setStyle(
+    marker._previousStyle
+  );
+
+  delete marker._previousStyle;
+}
+
+
 function selectVariable(variableId) {
 
   const v =
-    window.allVariables.find(v => v.variable_id === variableId);
-
-  console.log(v)
-
-  if (!v) {
-
-    console.error(
-      "Variable not found:",
-      variableId
+    window.allVariables.find(
+      v => v.variable_id === variableId
     );
 
-    console.log(
-      "Available keys sample:",
-      Object.keys(
-        window.variableMap || {}
-      ).slice(0, 10)
+  if (!v) return;
+
+  selectedVariable = v;
+
+
+  searchInput.value =
+    v.display_name || "";
+
+  closeDropdown();
+
+  highlightStations(v);
+
+  document.getElementById(
+    'clear-btn'
+  ).classList.add('visible');
+
+  const banner =
+    document.getElementById(
+      'search-banner'
     );
+
+  console.log(
+    v.display_name,
+    v.station_group,
+    v.station_ids?.length,
+    v.station_ids
+  );
+
+  banner.textContent =
+    `${v.station_ids?.length || 0} stations contain ${v.display_name}`;
+
+  banner.classList.add('visible');
+
+  // IF NON-STATION VARIABLE:
+  // open immediately
+
+  const isStationBased =
+    Array.isArray(v.station_ids) &&
+    v.station_ids.length > 0;
+
+  // NON-STATION DATA
+
+  if (!isStationBased) {
+
+    openVariableModal(v);
 
     return;
   }
 
+  // STATION-BASED DATA
 
   highlightStations(v);
 
-  openVariableModal(v);
+  document.getElementById(
+    'clear-btn'
+  ).classList.add('visible');
+
+
+  banner.textContent =
+    `${v.station_ids?.length || 0} stations contain ${v.display_name}`;
+
+  banner.classList.add('visible');
+
+  renderVariableSelectionPanel(v);
 }
 
 function escapeRe(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// --- Category filter ---
-function toggleCategory(cat, btn) {
-  if (activeCategory === cat) {
-    activeCategory = null;
-    btn.classList.remove('active');
-    if (!selectedVariable) { clearHighlights(); document.getElementById('clear-btn').classList.remove('visible'); }
-  } else {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeCategory = cat;
+function renderVariableSelectionPanel(v) {
 
-    // Filter to stations that have any variable in this category
-    const ids = new Set();
-    allVariables.filter(v => v.category === cat).forEach(v => v.station_ids.forEach(id => ids.add(id)));
-    highlightStations(ids);
+  const content =
+    document.getElementById(
+      'panel-content'
+    );
 
-    const banner = document.getElementById('search-banner');
-    banner.textContent = `${ids.size} stations have ${cat} data`;
-    banner.classList.add('visible');
-    document.getElementById('clear-btn').classList.add('visible');
+  document.getElementById(
+    'panel-empty'
+  ).style.display = 'none';
+
+  document.getElementById(
+    'panel-header'
+  ).style.display = 'block';
+
+  document.getElementById(
+    'panel-station-id'
+  ).textContent =
+    v.display_name;
+
+  document.getElementById(
+    'panel-coords'
+  ).textContent =
+    'Select a highlighted station';
+
+  content.classList.add('visible');
+
+  content.innerHTML = `
+
+    <div style="
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.8;
+    ">
+
+      ${v.description || ''
+    }
+
+      <br><br>
+
+      <span style="color:var(--accent)">
+        ${v.station_ids?.length || 0}
+        stations available
+      </span>
+
+    </div>
+
+  `;
+}
+
+function resetPanelUI() {
+
+  // header reset
+  const header = document.getElementById('panel-header');
+  if (header) header.style.display = 'none';
+
+  document.getElementById('panel-station-id').textContent = '';
+  document.getElementById('panel-coords').textContent = '';
+
+  // content reset
+  const content = document.getElementById('panel-content');
+  if (content) {
+    content.classList.remove('visible');
+    content.innerHTML = '';
+  }
+
+  // empty state restore
+  const empty = document.getElementById('panel-empty');
+  if (empty) {
+    empty.style.display = 'flex'; // important: matches your CSS flex layout
+  }
+
+  // global state reset (important for your earlier bug)
+  selectedVariable = null;
+  window.currentStation = null;
+
+  // UI extras
+  document.getElementById('clear-btn')?.classList.remove('visible');
+
+  const banner = document.getElementById('search-banner');
+  if (banner) {
+    banner.classList.remove('visible');
+    banner.textContent = '';
   }
 }
 
@@ -889,36 +1228,66 @@ function highlightStations(variable) {
 
   clearHighlights();
 
-  if (
-    !variable.station_ids
-  ) return;
+  if (!variable?.station_ids)
+    return;
 
   variable.station_ids.forEach(id => {
 
     const station =
-      window.stationMap[id];
+      window.stationMap[
+      normalizeStationId(id)
+      ];
 
     if (
-      station &&
-      station.marker
+      station?.marker
     ) {
 
       station.marker.setStyle({
 
-        radius: 7,
+        radius: 10,
 
-        fillColor: "#ffcc00",
+        fillColor: "#ffd84d",
 
-        color: "#ffffff",
+        color: "#fff3bf",
 
-        weight: 2
+        weight: 2,
+
+        fillOpacity: 0.95,
+
+        opacity: 1
       });
     }
   });
 }
 
+
 function clearHighlights() {
-  allStations.forEach(s => { if (markers[s.station_id]) markers[s.station_id].setStyle(makeMarkerStyle(true)); });
+
+  Object.values(
+    window.stationMap || {}
+  ).forEach(station => {
+
+    if (!station.marker)
+      return;
+
+    styleDefaultStation(
+      station.marker
+    );
+  });
+}
+
+function handleVariableClick(variableId) {
+  const variable = window.variableMap?.[variableId];
+  if (!variable) return;
+
+  selectVariable(variableId);
+
+  // always try to open after state settles
+  requestAnimationFrame(() => {
+    if (window.currentStation) {
+      openVariableModal(variable);
+    }
+  });
 }
 
 function clearAll() {
@@ -930,108 +1299,10 @@ function clearAll() {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('search-banner').classList.remove('visible');
   document.getElementById('clear-btn').classList.remove('visible');
+  resetPanelUI();
 }
 
 
-function openModal(v) {
-  const modalBackdrop = document.getElementById('modal-backdrop');
-  const modalTitle = document.getElementById('modal-title');
-  const modalBody = document.getElementById('modal-body');
-  const footer = document.getElementById('modal-footer');
-
-  modalTitle.textContent = v.display_name;
-
-  // ---------- BODY ----------
-  modalBody.innerHTML = `
-    <div class="modal-row">
-      <span class="modal-row-label">Source</span>
-      <span class="modal-row-value accent">${v.platform || 'Unknown'}</span>
-    </div>
-
-    <div class="modal-row">
-      <span class="modal-row-label">Category</span>
-      <span class="modal-row-value">${v.entity_type || 'Uncategorized'}</span>
-    </div>
-
-  `;
-
-  // ---------- WARNINGS ----------
-  const transitSources = ['Marine Mammals', 'Seabirds', 'Underway'];
-  if (transitSources.includes(v.source)) {
-    modalBody.innerHTML += `
-      <div style="margin-top:12px;padding:10px 12px;
-                  background:rgba(255,107,53,0.08);
-                  border:1px solid rgba(255,107,53,0.25);
-                  border-radius:4px;font-size:10px;color:var(--warm);line-height:1.6;">
-        ⚠️ Transit-based data (not fixed stations)
-      </div>`;
-  }
-
-  const subsetSources = ['DIC', 'Primary Production', 'Phytoplankton', 'Genomics/eDNA'];
-  if (subsetSources.includes(v.source)) {
-    modalBody.innerHTML += `
-      <div style="margin-top:12px;padding:10px 12px;
-                  background:rgba(0,194,255,0.06);
-                  border:1px solid rgba(0,194,255,0.2);
-                  border-radius:4px;font-size:10px;color:var(--muted);line-height:1.6;">
-        ℹ️ Available at subset of stations
-      </div>`;
-  }
-
-
-
-  let finalUrl = null;
-
-  if (v.platform === "erddap") {
-
-    finalUrl =
-      buildERDDAPUrl(v);
-  }
-
-  else if (
-    v.dataset_id === "euphausiid"
-  ) {
-
-    finalUrl =
-      buildEuphausiidUrl(v);
-  }
-
-  else if (
-    v.dataset_id === "zoodb"
-  ) {
-
-    finalUrl =
-      buildZooDBUrl(v);
-  }
-
-  else {
-
-    finalUrl =
-      v.source?.access_url ||
-      v.url;
-  }
-
-  footer.innerHTML = `
-
-  <div style="
-    width:100%;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-  ">
-
-    <a class="btn-docs"
-       href="${finalUrl}"
-       target="_blank"
-       style="text-align:center">
-
-      Open Dataset ↗
-
-    </a>
-
-  </div>
-`;
-}
 
 function openVariableModal(v) {
 
@@ -1122,16 +1393,15 @@ function openVariableModal(v) {
         ${v.platform || ""}
       </div>
 
-      ${
-        v.units
-          ? `
+      ${v.units
+      ? `
           <div>
             <strong>Units:</strong>
             ${v.units}
           </div>
         `
-          : ""
-      }
+      : ""
+    }
 
     </div>
   `;
@@ -1222,20 +1492,19 @@ function openVariableModal(v) {
   );
 
   // external dataset warning
-  footer.appendChild(
-    warning
-  );
+  // footer.appendChild(
+  //   warning
+  // );
 
   if (!v.station_based) {
-
-    warning.style.display =
-      "block";
-
-  } else {
-
-    warning.style.display =
-      "none";
+  if (warning) {
+    warning.style.display = "block";
   }
+} else {
+  if (warning) {
+    warning.style.display = "none";
+  }
+}
 
   // show modal
   backdrop.style.display =
@@ -1262,8 +1531,12 @@ function closeModal(event) {
     backdrop.style.display =
       "none";
   }
+  clearAll();
 }
+
+
 
 // --- Boot ---
 loadStations();
+loadStationGroups();
 loadVariables();

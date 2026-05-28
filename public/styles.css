@@ -105,30 +105,9 @@
 
   /* Side panel */
   .panel { width: 360px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
-  .panel-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .panel-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; display:none}
   .panel-station-id { font-size: 22px; color: var(--accent); font-weight: 700; letter-spacing: 1px; }
-  .panel-coords { font-size: 10px; color: var(--muted); margin-top: 4px; }
-
-  .btn-download-all {
-    display: block;
-    margin-top: 12px;
-    padding: 9px 14px;
-    background: rgba(0,255,179,0.08);
-    border: 1px solid rgba(0,255,179,0.3);
-    border-radius: 4px;
-    color: var(--accent2);
-    font-family: 'Space Mono', monospace;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-decoration: none;
-    text-align: center;
-    transition: all 0.2s;
-  }
-  .btn-download-all:hover {
-    background: rgba(0,255,179,0.18);
-    border-color: var(--accent2);
-  }
+  .panel-coords { font-size: 20px; color: var(--accent2); margin-top: 4px; }
   .panel-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); text-align: center; padding: 40px; gap: 12px; }
   .panel-empty-icon { font-size: 36px; opacity: 0.4; }
   .panel-empty-text { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 15px; line-height: 1.8; }
@@ -136,6 +115,34 @@
   .panel-content.visible { display: block; }
   .panel-content::-webkit-scrollbar { width: 4px; }
   .panel-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .side-back-button {
+
+  display: none;
+
+  width: 100%;
+
+  margin-bottom: 12px;
+
+  padding: 8px 12px;
+
+  border: none;
+
+  border-radius: 8px;
+
+  background: #1f2937;
+
+  color: white;
+
+  cursor: pointer;
+
+  font-size: 14px;
+}
+
+.side-back-button:hover {
+
+  background: #111827;
+}
 
   /* Source groups in panel */
   .source-group { margin-bottom: 22px; }

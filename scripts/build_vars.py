@@ -1,15 +1,49 @@
 import json
 import pandas as pd
 import requests
+from pathlib import Path
 
 INPUT_CSV = "metadata/data_sources.csv"
 
-OUTPUT_JSON = "data/variables.json"
+BASE_DIR = Path(__file__).resolve().parent.parent
 
+OUTPUT_DIR = BASE_DIR / "public" / "data"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# =====================================================
-# HELPERS
-# =====================================================
+OUTPUT_FILE = OUTPUT_DIR / "variables.json"
+
+stations_path = OUTPUT_DIR / "stations.json"
+
+with open(stations_path) as f:
+
+    stations = json.load(f)
+
+def normalize_station_id(value):
+
+    if value is None:
+        return None
+
+    return (
+        str(value)
+        .replace('"', '')
+        .strip()
+    )
+
+ALL_STATION_IDS = [
+
+    s["station_id"]
+
+    for s in stations
+
+    if s.get("station_id")
+]
+
+CANONICAL_STATIONS = set(
+
+    normalize_station_id(s)
+
+    for s in ALL_STATION_IDS
+)
 
 def clean(value):
 
@@ -58,6 +92,157 @@ def build_info_url(base_url, dataset_id):
         f"{base}/erddap/info/"
         f"{dataset_id}/index.json"
     )
+
+
+
+def fetch_erddap_stations(dataset_id):
+
+    print(
+        f"Fetching stations for {dataset_id}"
+    )
+
+    # temporary handling
+    # for non-ERDDAP datasets
+
+    if dataset_id in {
+        "zoodb",
+        "euphausiid"
+    }:
+
+        return ALL_STATION_IDS
+
+    base = (
+        "https://oceanview.pfeg.noaa.gov"
+        "/erddap/tabledap"
+    )
+
+    hydro_datasets = {
+        "siocalcofiHydroBottle",
+        "siocalcofiHydroCast"
+    }
+
+    try:
+
+        # -------------------------------------
+        # CASE 1 — sta_id datasets
+        # -------------------------------------
+
+        if dataset_id in hydro_datasets:
+
+            url = (
+                f"{base}/{dataset_id}.json"
+                "?sta_id&distinct()"
+            )
+
+            r = requests.get(
+                url,
+                timeout=60
+            )
+
+            r.raise_for_status()
+
+            rows = (
+                r.json()
+                ["table"]
+                ["rows"]
+            )
+
+            stations = []
+
+            for row in rows:
+
+                if not row:
+                    continue
+
+                station = normalize_station_id(
+                    row[0]
+                )
+
+                if (
+                    station and
+                    station in CANONICAL_STATIONS
+                ):
+
+                    stations.append(
+                        station
+                    )
+
+            return sorted(
+                list(set(stations))
+            )
+
+        # -------------------------------------
+        # CASE 2 — line/station datasets
+        # -------------------------------------
+
+        else:
+
+            url = (
+                f"{base}/{dataset_id}.json"
+                "?line%2Cstation&distinct()"
+            )
+
+            r = requests.get(
+                url,
+                timeout=60
+            )
+
+            r.raise_for_status()
+
+            rows = (
+                r.json()
+                ["table"]
+                ["rows"]
+            )
+
+            stations = []
+
+            for row in rows:
+
+                if len(row) < 2:
+                    continue
+
+                line = row[0]
+                station = row[1]
+
+                if (
+                    line is None or
+                    station is None
+                ):
+                    continue
+
+                station_id = (
+                    f"{line} {station}"
+                )
+
+                normalized_station = (
+                    normalize_station_id(
+                        station_id
+                    )
+                )
+
+                if (
+                    normalized_station
+                    in CANONICAL_STATIONS
+                ):
+
+                    stations.append(
+                        normalized_station
+                    )
+
+            return sorted(
+                list(set(stations))
+            )
+
+    except Exception as e:
+
+        print(
+            f"Station fetch failed for {dataset_id}:",
+            e
+        )
+
+        return []
+
 
 
 # =====================================================
@@ -150,6 +335,7 @@ all_variables = []
 # =====================================================
 # PROCESS DATASETS
 # =====================================================
+station_groups = {}
 
 for _, row in df.iterrows():
 
@@ -186,6 +372,27 @@ for _, row in df.iterrows():
             response = requests.get(metadata_url)
 
             metadata_json = response.json()
+
+            # =================================================
+# FETCH STATION COVERAGE ONCE
+# =================================================
+
+            if (
+                dataset_id
+                not in station_groups
+            ):
+
+                station_groups[
+                    dataset_id
+                ] = fetch_erddap_stations(
+                    dataset_id
+                )
+
+            dataset_station_ids = (
+                station_groups[
+                    dataset_id
+                ]
+            )
 
         except Exception as e:
 
@@ -252,10 +459,13 @@ for _, row in df.iterrows():
                     platform,
 
                 "station_based":
-                    station_based,
+                    len(dataset_station_ids) > 0,
 
-                "station_ids":
-                    [],
+                "station_group":
+                    dataset_id,
+
+                "station_count":
+                    len(dataset_station_ids),
 
                 "science_concepts":
                     [ioos_category]
@@ -601,17 +811,35 @@ except Exception as e:
     print("\nFailed ZooDB ingestion")
     print(e)
 
-# =====================================================
-# WRITE OUTPUT
-# =====================================================
 
-with open(OUTPUT_JSON, "w") as f:
+station_groups_path = (
+    OUTPUT_DIR /
+    "station_groups.json"
+)
+
+with open(
+    station_groups_path,
+    "w"
+) as f:
 
     json.dump(
-        all_variables,
+
+        station_groups,
+
         f,
-        indent=2
+
+        separators=(",", ":")
+
     )
+
+print(
+    f"Wrote {station_groups_path}"
+)
+
+with open(OUTPUT_FILE, "w") as f:
+    json.dump(
+    all_variables, f, separators=(",", ":")
+)
 
 print("\n================================")
 print(f"Wrote {len(all_variables)} variables")

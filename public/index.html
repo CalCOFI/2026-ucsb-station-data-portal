@@ -33,11 +33,6 @@
       <div class="dropdown" id="dropdown"></div>
     </div>
     <div class="category-filters" id="category-filters"></div>
-    <button class="station-toggle" id="station-toggle" onclick="toggleStationSearch()">
-
-      Station Search: ON
-
-    </button>
 
     <button class="clear-btn" id="clear-btn" onclick="clearAll()">
 
@@ -53,13 +48,17 @@
     <div class="panel" id="panel">
       <div class="panel-empty" id="panel-empty">
         <div class="panel-empty-icon">🌊</div>
-        <div class="panel-empty-text">Click any station<br>to explore its data</div>
+        <div class="panel-empty-text">Click any station<br>to explore its data. Note some stations have no data & will be blank</div>
       </div>
+            <button id="station-back-button" class="side-back-button">
+        ← Back (currently under development)
+      </button>
       <div class="panel-header" id="panel-header" style="display:none">
         <div class="panel-station-id" id="panel-station-id"></div>
         <div class="panel-coords" id="panel-coords"></div>
       </div>
       <div class="panel-content" id="panel-content"></div>
+
     </div>
   </div>
 
@@ -82,19 +81,6 @@
     </div>
   </div>
 
-  <div class="loading-overlay" id="loading-overlay">
-
-    <div class="loading-box">
-
-      <div class="loading-spinner"></div>
-
-      <div class="loading-text">
-        Loading datasets...
-      </div>
-
-    </div>
-
-  </div>
 
   <script src="app.js"></script>
 </body>
