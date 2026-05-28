@@ -1260,20 +1260,24 @@ function highlightStations(variable) {
   });
 }
 
-
 function clearHighlights() {
 
-  Object.values(
-    window.stationMap || {}
-  ).forEach(station => {
+  Object.values(window.stationMap || {})
+    .forEach(station => {
 
-    if (!station.marker)
-      return;
+      if (!station.marker) return;
 
-    styleDefaultStation(
-      station.marker
-    );
-  });
+      station.marker.setStyle({
+
+        radius: 5,
+        fillColor: "#4a90e2",
+        color: "#ffffff",
+        weight: 1,
+        fillOpacity: 0.7,
+        opacity: 1
+
+      });
+    });
 }
 
 function handleVariableClick(variableId) {
@@ -1297,9 +1301,9 @@ function clearAll() {
   closeDropdown();
   clearHighlights();
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('search-banner').classList.remove('visible');
+  //document.getElementById('search-banner').classList.remove('visible');
   document.getElementById('clear-btn').classList.remove('visible');
-  resetPanelUI();
+  //resetPanelUI();
 }
 
 
@@ -1531,7 +1535,7 @@ function closeModal(event) {
     backdrop.style.display =
       "none";
   }
-  clearAll();
+  //clearAll();
 }
 
 
