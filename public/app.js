@@ -379,8 +379,8 @@ function parseStationId(stationId) {
 
 function openStation(station) {
 
- window.currentStation =
-  station;
+  window.currentStation =
+    station;
 
   document.getElementById(
     'panel-empty'
@@ -424,6 +424,21 @@ function openStation(station) {
     stationVariables.length
   );
 
+  if (stationVariables.length === 0) {
+
+  content.innerHTML = `
+    <div style="
+      text-align:center;
+      padding:24px;
+      color:var(--muted);
+    ">
+      No variables are available at this station.
+    </div>
+  `;
+
+  return;
+}
+
   // GROUP
 
   const bySource = {};
@@ -431,7 +446,7 @@ function openStation(station) {
   stationVariables.forEach(v => {
 
     const source =
-      v.provider || "Unknown";
+      v.provider || "";
 
     const category =
       v.entity_type || "Other";
@@ -507,6 +522,9 @@ async function loadStations() {
 
     window.stationMap = {};
 
+    window.stationIdMap = {};
+
+
     // =================================================
     // CLEAR OLD MARKERS
     // =================================================
@@ -529,10 +547,19 @@ async function loadStations() {
 
       // lookup map
 
+      station.station_key =
+        normalizeStationId(
+          station.station_id
+        );
 
       window.stationMap[
         station.station_key
       ] = station;
+
+      window.stationIdMap[
+        station.station_id
+      ] = station;
+
 
       // validate coordinates
 
@@ -841,11 +868,6 @@ function renderDropdown(searchTerm = "") {
     return text.includes(searchTerm.toLowerCase());
   });
 
-  // if (filtered.length === 0 || !searchTerm) {
-  //   list.innerHTML = "";
-  //   list.classList.remove("open");
-  //   return;
-  // }
 
   const results =
     searchTerm
@@ -854,13 +876,6 @@ function renderDropdown(searchTerm = "") {
 
   list.classList.add("open");
 
-  // list.innerHTML = filtered.map(v => `
-  //   <div class="dropdown-item"
-  //        data-id="${v.variable_id}">
-
-  //     <div class="dropdown-title">
-  //       ${v.display_name}
-  //     </div>
 
   if (results.length === 0) {
     list.innerHTML = `
@@ -910,39 +925,6 @@ document.getElementById("dropdown").addEventListener("mousedown", (e) => {
 });
 
 
-
-
-
-// function selectVariable(variableId) {
-
-//   const v =
-//     window.allVariables.find(v => v.variable_id === variableId);
-
-//   console.log(v)
-
-//   if (!v) {
-
-//     console.error(
-//       "Variable not found:",
-//       variableId
-//     );
-
-//     console.log(
-//       "Available keys sample:",
-//       Object.keys(
-//         window.variableMap || {}
-//       ).slice(0, 10)
-//     );
-
-//     return;
-//   }
-
-
-//   highlightStations(v);
-
-//   openVariableModal(v);
-// }
-
 function styleDefaultStation(marker) {
 
   marker.setStyle({
@@ -961,7 +943,7 @@ function styleDefaultStation(marker) {
 
 
 
-function darkenColor(hex, factor = 0.75) {
+function darkenColor(hex, factor = 0.65) {
 
   if (!hex) return hex;
 
@@ -1228,56 +1210,67 @@ function highlightStations(variable) {
 
   clearHighlights();
 
-  if (!variable?.station_ids)
+  if (!Array.isArray(variable?.station_ids)) {
     return;
+  }
 
-  variable.station_ids.forEach(id => {
+  variable.station_ids.forEach(stationId => {
 
-    const station =
-      window.stationMap[
-      normalizeStationId(id)
-      ];
+const station =
+  window.stationIdMap[
+    stationId
+  ];
 
-    if (
-      station?.marker
-    ) {
+    if (!station?.marker) {
 
-      station.marker.setStyle({
+      console.warn(
+        "Missing station:",
+        stationId
+      );
 
-        radius: 10,
-
-        fillColor: "#ffd84d",
-
-        color: "#fff3bf",
-
-        weight: 2,
-
-        fillOpacity: 0.95,
-
-        opacity: 1
-      });
+      return;
     }
+
+    station.marker.setStyle({
+      radius: 10,
+      fillColor: "#ffd84d",
+      color: "#fff3bf",
+      weight: 2,
+      fillOpacity: 0.95,
+      opacity: 1
+    });
+
+    station.marker.bringToFront?.();
   });
 }
 
 function clearHighlights() {
 
+  console.log("clearHighlights called");
+
+  let count = 0;
+
   Object.values(window.stationMap || {})
     .forEach(station => {
 
-      if (!station.marker) return;
+      if (!station?.marker) return;
+
+      count++;
 
       station.marker.setStyle({
-
-        radius: 5,
-        fillColor: "#4a90e2",
-        color: "#ffffff",
+        radius: 10,
+        color: "#00c2ff",
+        fillColor: "#00c2ff",
         weight: 1,
         fillOpacity: 0.7,
         opacity: 1
-
       });
     });
+
+  console.log(
+    "markers reset:",
+    count
+  );
 }
 
 function handleVariableClick(variableId) {
@@ -1303,7 +1296,8 @@ function clearAll() {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   //document.getElementById('search-banner').classList.remove('visible');
   document.getElementById('clear-btn').classList.remove('visible');
-  //resetPanelUI();
+  document.getElementById('search-banner').classList.remove('visible');
+  resetPanelUI();
 }
 
 
@@ -1501,14 +1495,14 @@ function openVariableModal(v) {
   // );
 
   if (!v.station_based) {
-  if (warning) {
-    warning.style.display = "block";
+    if (warning) {
+      warning.style.display = "block";
+    }
+  } else {
+    if (warning) {
+      warning.style.display = "none";
+    }
   }
-} else {
-  if (warning) {
-    warning.style.display = "none";
-  }
-}
 
   // show modal
   backdrop.style.display =
