@@ -9,161 +9,368 @@ Built as part of the PSTAT 197 Capstone project in collaboration with CalCOFI, S
 ## What It Does
 
 - **Interactive map** of 115 real CalCOFI stations with clickable markers
-- **Station panel** — click any station to see all data collected there, grouped by source (CTD, Bottle DB, Zooplankton, etc.)
-- **Direct downloads** — download CTD cruise files by year, Bottle Database, DIC, Zooplankton, and the full LTER Master Database
-- **Search & filter** — live dropdown search by variable name, filter by category (Physical, Chemical, Biological, etc.)
+- **Station panel** — click any station to see all data collected there
+- **Search & filter** — live dropdown search by variable name
 - **Accurate highlighting** — searching a variable highlights only the stations where that data is actually collected
-- **Download All** — one-click access to the full CalCOFI LTER Master Database (1949–2023)
 
----
-
-## Data Sources
-
-| Source | Stations | Date Range | Direct Download? |
-|---|---|---|---|
-| CTD Cast Files | All 115 | 2020–2024 | ✅ Per-cruise zip |
-| Bottle Database | All 115 | 1949–2021 | ✅ Full CSV zip |
-| DIC | ~25 | 2009–2015 | ✅ Direct zip |
-| Zooplankton | All 115 | 1951–2018 | ✅ Direct zip |
-| Fish Eggs & Larvae | All 115 | 1951–present | 🔗 Data page |
-| Primary Production | ~23 | 1984–present | 🔗 Data page |
-| Phytoplankton | ~56 | 1980–present | 🔗 Data page |
-| Genomics/eDNA | ~49 | 2014–present | 🔗 Data page |
-| Marine Mammals | Transit only | 1991–present | 🔗 Data page |
-| Seabirds | Transit only | 1987–present | 🔗 Data page |
-| Underway MET | Transit only | 1990–present | 🔗 Data page |
+The application is fully static and deployable on Vercel, GitHub Pages, Netlify, or any static web host.
 
 ---
 
 ## Project Structure
 
+The application consists entirely of client-side JavaScript and static JSON files.
 ```
-calcofi-portal/
-├── models.py          # SQLAlchemy database models (stations, data_types, links)
-├── seed.py            # Builds and populates the database from CSVs
-├── main.py            # FastAPI backend — 4 REST endpoints
-├── map.html           # Frontend — standalone HTML map (open in browser)
-├── data/
-│   ├── stations.csv   # 115 real CalCOFI stations with lat/lon
-│   └── data_types.csv # 111 variables across all 11 data sources
-└── README.md
-```
+public/
+│
+├── index.html
+├── styles.css
+├── app.js
+│
+└── data/
+    ├── stations.json
+    ├── variables.json
+    ├── data_sources.csv
+    └── search_index.json
+metadata/
+│
+├── data_sources.csv
+├── euphausia.txt
+├── stations.csv
+└── zoodb.csv
+scripts/
+│
+├── build_data.py
+├── build_search.py
+├── build_stations.py
+└── build_vars.py
 
-> `calcofi.db` is not included in the repo — it is generated locally by running `seed.py`.
+```
+No backend server or database is required.
 
 ---
 
-## Setup Instructions
 
-### Prerequisites
+## Core Data Files
 
-- Python 3.9+
-- pip
+### variables.json
 
-### 1. Clone the repo
+Master variable catalog.
 
-```bash
-git clone https://github.com/pstat197/capstone-calcofi-seagrant-scripps.git
-cd capstone-calcofi-seagrant-scripps
+Each variable follows the schema:
+
+```json
+{
+  "variable_id": "",
+  "dataset_id": "",
+  "dataset_name": "",
+
+  "entity_type": "",
+
+  "variable_name": "",
+  "display_name": "",
+
+  "description": "",
+  "units": "",
+
+  "platform": "",
+  "provider": "",
+
+  "station_based": true,
+  "station_ids": [],
+
+  "science_concepts": [],
+  "keywords": [],
+
+  "taxonomy": {},
+
+  "source": {
+    "access_url": "",
+    "metadata_url": ""
+  }
+}
 ```
 
-### 2. Create a virtual environment
+### stations.json
 
-```bash
-python3 -m venv venv
-source venv/bin/activate        # Mac/Linux
-# venv\Scripts\activate         # Windows
+Station metadata used by the map.
+
+Example:
+
+```json
+{
+  "station_id": "080.0 080.0",
+  "lat": 33.5,
+  "lon": -120.5
+}
 ```
 
-### 3. Install dependencies
+### data_sources.csv
 
-```bash
-pip install fastapi uvicorn sqlalchemy
-```
+Dataset registry used to generate metadata.
 
-### 4. Build the database
+| Column | Description |
+|----------|-------------|
+| dataset_id | Unique dataset identifier |
+| dataset_name | Human-readable dataset name |
+| platform | erddap, euphausiid, zoodb, external |
+| access_url | Dataset access URL |
+| metadata_url_pattern | Metadata URL template |
+| provider | Data provider |
 
-```bash
-python seed.py
-```
+### search_index.json
 
-You should see:
-```
-✓ Tables created
-✓ Loaded 115 stations
-✓ Loaded 111 data types
-✓ Loaded 11184 station-data links
-✅ Done! Database saved to calcofi.db
-```
+Optimized search index generated from `variables.json`.
 
-### 5. Start the API
+Used for:
 
-```bash
-uvicorn main:app --reload
-```
-
-The API will be running at `http://localhost:8000`
-
-### 6. Open the map
-
-Double-click `map.html` in Finder (Mac) or File Explorer (Windows) to open it in your browser.
+- Search
+- Autocomplete
+- Keyword matching
+- Synonym lookup
 
 ---
 
-## API Endpoints
+## Supported Platforms
 
-| Endpoint | Description |
-|---|---|
-| `GET /stations` | All 115 stations with lat/lon — powers the map dots |
-| `GET /stations/{id}` | Single station with all its data links |
-| `GET /variables?search=chlorophyll` | Search variables by name |
-| `GET /categories` | All variable categories (Physical, Chemical, etc.) |
+### ERDDAP
 
-Interactive API docs available at `http://localhost:8000/docs` while the server is running.
+Interactive query URLs are generated automatically from selected variables and stations.
+
+Examples:
+
+```text
+https://oceanview.pfeg.noaa.gov/erddap/tabledap/siocalcofiHydroCast.html
+```
+
+Supported station formats:
+
+- `sta_id`
+- `line + station`
+
+### Euphausiid Database
+
+Query URLs are generated dynamically using selected species, life stages, stations, and years.
+
+Example:
+
+```text
+https://oceaninformatics.ucsd.edu/euphausiid/save.php
+```
+
+### ZooDB
+
+Query URLs are generated dynamically using selected taxa and stations.
+
+Example:
+
+```text
+https://oceaninformatics.ucsd.edu/zoodb/save.php
+```
+
+### External Datasets
+
+Datasets that do not support parameterized query URLs are linked directly.
+
+Examples include:
+
+- EDI Repository
+- NCBI
+- Stanford Digital Repository
+- NOAA NCEI
 
 ---
 
-## Updating the Data
+## Local Development
 
-### Adding new stations or variables
+Serve the `public` directory using any static web server.
 
-Edit `data/stations.csv` or `data/data_types.csv` directly (they open in Excel), then rebuild the database:
+### Option 1: VS Code Live Server
+
+Right-click `index.html` and select:
+
+```text
+Open with Live Server
+```
+
+### Option 2: Python
 
 ```bash
-rm calcofi.db
-python seed.py
+cd public
+python -m http.server 8000
 ```
 
-### Adding new CTD cruise download links
+### Option 3: Node
 
-In `seed.py`, find the `CTD_CRUISES` list in `map.html` and add a new entry following the pattern:
-
-```javascript
-{ label: '2025 Jan (2501RL)', url: 'https://calcofi.org/downloads/2025/20-2501RL_CTDPrelim.zip' },
+```bash
+npx serve public
 ```
 
-CTD preliminary files follow the URL pattern:
+Then open:
+
+```text
+http://localhost:8000
 ```
-https://calcofi.org/downloads/YYYY/20-YYMMSS_CTDPrelim.zip
+
+or
+
+```text
+http://localhost:3000
+```
+
+Do not open the HTML file directly from disk, as JSON fetch requests will fail.
+
+---
+
+## Deployment
+
+### Vercel
+
+1. Push repository to GitHub.
+2. Import repository into Vercel.
+3. Configure:
+
+| Setting | Value |
+|----------|--------|
+| Framework Preset | Other |
+| Build Command | None |
+| Output Directory | public |
+
+Deployments are automatically updated when changes are pushed to the main branch.
+
+---
+
+## Adding New Datasets
+
+### Step 1
+
+Add dataset metadata to:
+
+```text
+data_sources.csv
+```
+
+### Step 2
+
+Harvest metadata from the source portal.
+
+### Step 3
+
+Generate variable records.
+
+### Step 4
+
+Attach:
+
+- Keywords
+- Science concepts
+- Taxonomy
+
+### Step 5
+
+Associate variables with stations.
+
+### Step 6
+
+Rebuild:
+
+```text
+variables.json
+search_index.json
+stations.json
+```
+
+### Step 7
+
+Deploy.
+
+---
+
+## Dataset Discovery Workflow
+
+```text
+data_sources.csv
+        ↓
+Metadata Harvesting
+        ↓
+variables.json
+        ↓
+Station Matching
+        ↓
+stations.json
+        ↓
+Search Index Generation
+        ↓
+search_index.json
+        ↓
+Frontend Application
 ```
 
 ---
 
-## Tech Stack
+## Query Generation
 
-- **Backend**: Python, FastAPI, SQLAlchemy, SQLite
-- **Frontend**: Vanilla HTML/CSS/JS, Leaflet.js
-- **Data**: CalCOFI public datasets (calcofi.org/data)
+### ERDDAP
+
+Generates interactive ERDDAP URLs containing:
+
+- Selected variables
+- Station constraints
+- User filters
+
+Example:
+
+```text
+https://oceanview.pfeg.noaa.gov/erddap/tabledap/siocalcofiHydroCast.html?time,latitude,longitude,dry_t
+```
+
+### Euphausiid
+
+Generates URLs containing:
+
+- Species
+- Life stage
+- Station
+- Year range
+
+### ZooDB
+
+Generates URLs containing:
+
+- Higher taxonomy
+- Species
+- Station
+- Year range
 
 ---
 
-## Data Use Agreement
+## Future Improvements
 
-All CalCOFI data is publicly available. By downloading you accept the [CalCOFI data use agreement](https://calcofi.org/data/data-usage-policy/).
+- Temporal filtering
+- Multi-variable query builder
+- Dataset comparison tools
+- Download cart
+- Taxonomic search hierarchy
+- Automated metadata harvesting
+- Station-variable coverage analysis
+- Interactive dataset coverage visualization
 
 ---
 
-## Contact
+## Data Sources
 
-For data questions: calcofi@gmail.com  
-For project questions: PSTAT 197 Capstone — UC Santa Barbara
+Data are provided by:
+
+- CalCOFI
+- NOAA Southwest Fisheries Science Center
+- Scripps Institution of Oceanography
+- CCE-LTER
+- Ocean Informatics
+- EDI Data Repository
+- NOAA NCEI
+
+---
+
+## Acknowledgements
+
+This project was developed as part of the UCSB Data Science Capstone Program to improve discoverability and accessibility of CalCOFI and California Current Ecosystem datasets.
