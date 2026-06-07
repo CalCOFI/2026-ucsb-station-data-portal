@@ -30,40 +30,25 @@ def normalize_station_id(value):
     )
 
 ALL_STATION_IDS = [
-
-    s["station_id"]
-
-    for s in stations
-
-    if s.get("station_id")
+    s["station_id"] for s in stations if s.get("station_id")
 ]
 
-CANONICAL_STATIONS = set(
-
-    normalize_station_id(s)
-
-    for s in ALL_STATION_IDS
+CANONICAL_STATIONS = set(normalize_station_id(s) for s in ALL_STATION_IDS
 )
 
 def clean(value):
-
     if value is None:
         return ""
-
     return str(value).strip()
 
 
 def make_variable_id(dataset_id, variable_name):
-
     safe = variable_name.replace(" ", "_")
-
     return f"{dataset_id}::{safe}"
 
 
 def infer_entity_type(name):
-
     n = name.lower()
-
     if any(x in n for x in [
         "temp",
         "temperature",
@@ -80,14 +65,11 @@ def infer_entity_type(name):
         "ph"
     ]):
         return "chemical_variable"
-
     return "scientific_variable"
 
 
 def build_info_url(base_url, dataset_id):
-
     base = base_url.rstrip("/")
-
     return (
         f"{base}/erddap/info/"
         f"{dataset_id}/index.json"
@@ -96,73 +78,51 @@ def build_info_url(base_url, dataset_id):
 
 
 def fetch_erddap_stations(dataset_id):
-
     print(
         f"Fetching stations for {dataset_id}"
     )
-
-    # temporary handling
-    # for non-ERDDAP datasets
-
     if dataset_id in {
         "zoodb",
         "euphausiid"
     }:
-
         return ALL_STATION_IDS
-
+    
     base = (
         "https://oceanview.pfeg.noaa.gov"
         "/erddap/tabledap"
     )
-
     hydro_datasets = {
         "siocalcofiHydroBottle",
         "siocalcofiHydroCast"
     }
 
     try:
-
-        # -------------------------------------
-        # CASE 1 — sta_id datasets
-        # -------------------------------------
-
         if dataset_id in hydro_datasets:
-
             url = (
                 f"{base}/{dataset_id}.json"
                 "?sta_id&distinct()"
             )
-
             r = requests.get(
                 url,
                 timeout=60
             )
-
             r.raise_for_status()
-
             rows = (
                 r.json()
                 ["table"]
                 ["rows"]
             )
-
             stations = []
-
             for row in rows:
-
                 if not row:
                     continue
-
                 station = normalize_station_id(
                     row[0]
                 )
-
                 if (
                     station and
                     station in CANONICAL_STATIONS
                 ):
-
                     stations.append(
                         station
                     )
@@ -171,50 +131,35 @@ def fetch_erddap_stations(dataset_id):
                 list(set(stations))
             )
 
-        # -------------------------------------
-        # CASE 2 — line/station datasets
-        # -------------------------------------
-
         else:
-
             url = (
                 f"{base}/{dataset_id}.json"
                 "?line%2Cstation&distinct()"
             )
-
             r = requests.get(
                 url,
                 timeout=60
             )
-
             r.raise_for_status()
-
             rows = (
                 r.json()
                 ["table"]
                 ["rows"]
             )
-
             stations = []
-
             for row in rows:
-
                 if len(row) < 2:
                     continue
-
                 line = row[0]
                 station = row[1]
-
                 if (
                     line is None or
                     station is None
                 ):
                     continue
-
                 station_id = (
                     f"{line} {station}"
                 )
-
                 normalized_station = (
                     normalize_station_id(
                         station_id
@@ -225,7 +170,6 @@ def fetch_erddap_stations(dataset_id):
                     normalized_station
                     in CANONICAL_STATIONS
                 ):
-
                     stations.append(
                         normalized_station
                     )
@@ -237,128 +181,63 @@ def fetch_erddap_stations(dataset_id):
     except Exception as e:
 
         print(
-            f"Station fetch failed for {dataset_id}:",
-            e
+            f"Station fetch failed for {dataset_id}:", e
         )
-
         return []
 
 
-
-# =====================================================
-# PARSE ERDDAP INFO JSON
-# =====================================================
-
 def parse_erddap_info(metadata_json):
-
     rows = metadata_json["table"]["rows"]
-
     variables = {}
-
     current_variable = None
-
     for row in rows:
-
         row_type = row[0]
-
         variable_name = clean(row[1])
-
         attribute_name = clean(row[2])
-
         value = clean(row[4])
 
-        # ---------------------------------------------
-        # VARIABLE ROW
-        # ---------------------------------------------
-
         if row_type == "variable":
-
             current_variable = variable_name
-
             variables[current_variable] = {
-
-                "variable_name":
-                    current_variable,
-
-                "display_name":
-                    current_variable,
-
-                "description":
-                    "",
-
-                "units":
-                    "",
-
-                "ioos_category":
-                    "",
-
-                "long_name":
-                    ""
+                "variable_name": current_variable,
+                "display_name": current_variable,
+                "description": "",
+                "units":"",
+                "ioos_category": "",
+                "long_name": ""
             }
 
-        # ---------------------------------------------
-        # ATTRIBUTE ROW
-        # ---------------------------------------------
 
         elif row_type == "attribute":
-
             if variable_name not in variables:
                 continue
-
             if attribute_name == "description":
-
                 variables[variable_name]["description"] = value
-
             elif attribute_name == "units":
-
                 variables[variable_name]["units"] = value
-
             elif attribute_name == "long_name":
-
                 variables[variable_name]["long_name"] = value
-
             elif attribute_name == "ioos_category":
-
                 variables[variable_name]["ioos_category"] = value
 
     return list(variables.values())
 
 
-# =====================================================
-# LOAD DATA SOURCES
-# =====================================================
-
 df = pd.read_csv(INPUT_CSV)
 
 all_variables = []
-
-# =====================================================
-# PROCESS DATASETS
-# =====================================================
 station_groups = {}
 
 for _, row in df.iterrows():
-
     dataset_id = clean(row["dataset_id"])
-
     dataset_name = clean(row["name"])
-
     platform = clean(row["platform"]).lower()
-
     access_url = clean(row["url"])
-
     base_url = clean(row["base_url"])
-
     station_based = bool(row["station_based"])
-
     print(f"\nProcessing: {dataset_id}")
 
-    # =================================================
-    # ERDDAP
-    # =================================================
-
     if platform == "erddap":
-
         metadata_url = build_info_url(
             base_url,
             dataset_id
@@ -368,26 +247,17 @@ for _, row in df.iterrows():
         print(metadata_url)
 
         try:
-
             response = requests.get(metadata_url)
-
             metadata_json = response.json()
-
-            # =================================================
-# FETCH STATION COVERAGE ONCE
-# =================================================
-
             if (
                 dataset_id
                 not in station_groups
             ):
-
                 station_groups[
                     dataset_id
                 ] = fetch_erddap_stations(
                     dataset_id
                 )
-
             dataset_station_ids = (
                 station_groups[
                     dataset_id
@@ -410,67 +280,47 @@ for _, row in df.iterrows():
         )
 
         for pv in parsed_variables:
-
             variable_name = pv["variable_name"]
-
             display_name = (
                 pv["long_name"]
                 or variable_name
             )
-
             description = pv["description"]
-
             units = pv["units"]
-
             ioos_category = pv["ioos_category"]
-
             variable = {
-
                 "variable_id":
                     make_variable_id(
                         dataset_id,
                         variable_name
                     ),
-
                 "dataset_id":
                     dataset_id,
-
                 "dataset_name":
                     dataset_name,
-
                 "entity_type":
                     infer_entity_type(
                         variable_name
                     ),
-
                 "variable_name":
                     variable_name,
-
                 "display_name":
                     display_name,
-
                 "description":
                     description,
-
                 "units":
                     units,
-
                 "platform":
                     platform,
-
                 "station_based":
                     len(dataset_station_ids) > 0,
-
                 "station_group":
                     dataset_id,
-
                 "station_count":
                     len(dataset_station_ids),
-
                 "science_concepts":
                     [ioos_category]
                     if ioos_category else [],
-
                 "keywords":
                     list(set([
                         variable_name,
@@ -478,15 +328,11 @@ for _, row in df.iterrows():
                         description,
                         ioos_category
                     ])),
-
                 "taxonomy":
                     {},
-
                 "source": {
-
                     "access_url":
                         access_url,
-
                     "metadata_url":
                         metadata_url
                 }
@@ -494,38 +340,24 @@ for _, row in df.iterrows():
 
             all_variables.append(variable)
 
-    # =================================================
-    # NON-ERDDAP
-    # =================================================
-
     else:
-
         all_variables.append({
-
             "variable_id":
                 f"{dataset_id}::dataset",
-
             "dataset_id":
                 dataset_id,
-
             "dataset_name":
                 dataset_name,
-
             "entity_type":
                 "scientific_dataset",
-
             "variable_name":
                 dataset_name,
-
             "display_name":
                 dataset_name,
-
             "description":
                 dataset_name,
-
             "units":
                 "",
-
             "platform":
                 platform,
 

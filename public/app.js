@@ -1,10 +1,10 @@
-// --- Map ---
+// create map
 const map = L.map('map', { center: [32.5, -119.5], zoom: 6 })
   .addLayer(L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 14,
   }));
 
-// --- State ---
+// default states
 let allStations = [];
 let allVariables = [];
 let markers = {};
@@ -14,7 +14,7 @@ let dropdownFocusIdx = -1;
 let stationGroups = {};
 let selectedStation = null;
 
-
+// check the format of stationID for specific erddap dataset
 function usesStaId(datasetId) {
 
   return [
@@ -25,6 +25,7 @@ function usesStaId(datasetId) {
   ].includes(datasetId);
 }
 
+// make sure stations are in their correct groupings
 async function loadStationGroups() {
 
   const response =
@@ -41,6 +42,7 @@ async function loadStationGroups() {
     ))
 }
 
+// create erddap access url
 function buildERDDAPUrl(variable) {
 
   const dataset =
@@ -55,14 +57,10 @@ function buildERDDAPUrl(variable) {
   const selected =
     window.selectedVariables || [variable];
 
-  // selected variables from UI
-
   const variableNames = selected
     .filter(v => v.dataset_id === dataset)
     .map(v => v.variable_name)
     .filter(Boolean);
-
-  // required fields
 
   const fields = [
 
@@ -96,13 +94,9 @@ function buildERDDAPUrl(variable) {
 
     const s = window.currentStation;
 
-    // CASE 1 — sta_id exists
-
     if (
       usesStaId(dataset)
     ) {
-
-      // SIO hydro datasets
 
       url +=
         `&sta_id=` +
@@ -113,7 +107,6 @@ function buildERDDAPUrl(variable) {
 
     else {
 
-      // NOAA datasets use line/station
 
       const parsed =
         parseStationId(
@@ -137,7 +130,6 @@ function buildERDDAPUrl(variable) {
     }
   }
 
-  // selected variable constraints
 
   selected.forEach(v => {
 
@@ -165,7 +157,7 @@ function buildERDDAPUrl(variable) {
   return url;
 }
 
-
+// create epuhausid access url
 function buildEuphausiidUrl(variable) {
 
   const station =
@@ -251,7 +243,7 @@ function buildEuphausiidUrl(variable) {
   );
 }
 
-
+// create zoodb access url
 function buildZooDBUrl(variable) {
 
   const station =
@@ -341,6 +333,7 @@ function buildZooDBUrl(variable) {
   );
 }
 
+// make sure station id formats match
 function normalizeStationId(id) {
 
   if (!id) return "";
@@ -350,6 +343,7 @@ function normalizeStationId(id) {
     .trim();
 }
 
+// read station urls
 function parseStationId(stationId) {
 
   if (!stationId)
@@ -376,7 +370,7 @@ function parseStationId(stationId) {
   };
 }
 
-
+// opening stations
 function openStation(station) {
 
   window.currentStation =
@@ -408,8 +402,6 @@ function openStation(station) {
 
   content.classList.add('visible');
 
-  // FILTER VARIABLES FROM STATIC JSON
-
   const key =
     normalizeStationId(station.station_id);
 
@@ -439,8 +431,6 @@ function openStation(station) {
   return;
 }
 
-  // GROUP
-
   const bySource = {};
 
   stationVariables.forEach(v => {
@@ -467,10 +457,6 @@ function openStation(station) {
 
       <div class="source-group">
 
-        <div class="source-label">
-          📦 ${source}
-        </div>
-
         ${Object.entries(cats)
           .map(([cat, vars]) => `
 
@@ -484,7 +470,7 @@ function openStation(station) {
                  onclick='handleVariableClick("${v.variable_id}")'>
 
               <span class="data-link-name">
-                ${v.display_name}
+                ${v.display_name}  <i style="color: var(--muted)">[${v.dataset_name}]</i>
               </span>
 
             </div>
@@ -498,6 +484,8 @@ function openStation(station) {
     `).join('');
 }
 
+
+// loading station information
 async function loadStations() {
 
   try {
@@ -514,20 +502,12 @@ async function loadStations() {
         ? data
         : data.stations || [];
 
-    // =================================================
-    // STORE GLOBALLY
-    // =================================================
 
     window.allStations = stations;
 
     window.stationMap = {};
 
     window.stationIdMap = {};
-
-
-    // =================================================
-    // CLEAR OLD MARKERS
-    // =================================================
 
     if (window.stationLayer) {
 
@@ -539,13 +519,7 @@ async function loadStations() {
     window.stationLayer =
       L.layerGroup().addTo(map);
 
-    // =================================================
-    // BUILD MARKERS
-    // =================================================
-
     stations.forEach(station => {
-
-      // lookup map
 
       station.station_key =
         normalizeStationId(
@@ -560,8 +534,6 @@ async function loadStations() {
         station.station_id
       ] = station;
 
-
-      // validate coordinates
 
       if (
         station.lat == null ||
@@ -579,8 +551,6 @@ async function loadStations() {
             fillOpacity: 0.7
           }
         );
-
-      // IMPORTANT
 
       marker.stationData =
         station;
@@ -601,8 +571,6 @@ async function loadStations() {
         }
       );
 
-      // CLICK HANDLER
-
       marker.on("click", () => {
 
         if (selectedVariable) {
@@ -619,8 +587,6 @@ async function loadStations() {
           return;
         }
 
-        // restore previous selected station
-
         if (
           window.selectedStation?.marker
         ) {
@@ -630,20 +596,14 @@ async function loadStations() {
           );
         }
 
-        // set new selected station
-
         window.selectedStation = station;
 
         applySelectedStyle(
           station.marker
         );
 
-        // normal station workflow
-
         openStation(station);
       });
-
-      // store marker reference
 
       station.marker = marker;
 
@@ -671,7 +631,8 @@ async function loadStations() {
   }
 
 }
-// --- Variables + categories ---
+
+// loading variable information
 async function loadVariables() {
 
   try {
@@ -687,8 +648,6 @@ async function loadVariables() {
       Array.isArray(raw)
         ? raw
         : raw.variables || [];
-
-
 
     window.allVariables =
       variables;
@@ -759,7 +718,7 @@ async function loadVariables() {
 }
 
 
-// --- Dropdown search ---
+// dropdown search ----
 const searchInput = document.getElementById('search');
 const dropdown = document.getElementById('dropdown');
 
@@ -779,14 +738,6 @@ dropdown.addEventListener("mousedown", (e) => {
 searchInput.addEventListener("input", (e) => {
   renderDropdown(e.target.value);
 });
-
-// searchInput.addEventListener('input', () => {
-//   const q = searchInput.value.trim();
-//   dropdownFocusIdx = -1;
-//   if (!q) { closeDropdown(); clearHighlights(); return; }
-//   openDropdown();
-//   renderDropdown(q);
-// });
 
 searchInput.addEventListener('focus', () => {
   openDropdown();
@@ -826,23 +777,10 @@ searchInput.addEventListener("blur", () => {
 searchInput.addEventListener('focusout', (e) => {
   closeDropdown();
 });
+ 
+// ---
 
-
-function updateDropdownFocus(items) {
-  items.forEach((el, i) => el.classList.toggle('focused', i === dropdownFocusIdx));
-  if (items[dropdownFocusIdx]) items[dropdownFocusIdx].scrollIntoView({ block: 'nearest' });
-}
-
-function openDropdown() {
-  dropdown.classList.add('open');
-}
-
-function closeDropdown() {
-  console.log("closing dropdown");
-  dropdown.classList.remove('open');
-  dropdownFocusIdx = -1;
-}
-
+//create dropdown that appears under search bar
 function renderDropdown(searchTerm = "") {
   const vars = window.allVariables || [];
 
@@ -909,6 +847,24 @@ function renderDropdown(searchTerm = "") {
   `).join("");
 }
 
+// dropdown actions
+function updateDropdownFocus(items) {
+  items.forEach((el, i) => el.classList.toggle('focused', i === dropdownFocusIdx));
+  if (items[dropdownFocusIdx]) items[dropdownFocusIdx].scrollIntoView({ block: 'nearest' });
+}
+
+function openDropdown() {
+  dropdown.classList.add('open');
+}
+
+function closeDropdown() {
+  console.log("closing dropdown");
+  dropdown.classList.remove('open');
+  dropdownFocusIdx = -1;
+}
+// ---
+
+//dropdown functionality
 document.getElementById("dropdown").addEventListener("mousedown", (e) => {
   const item = e.target.closest(".dropdown-item");
   if (!item) return;
@@ -924,7 +880,7 @@ document.getElementById("dropdown").addEventListener("mousedown", (e) => {
   }
 });
 
-
+// creating default marker style
 function styleDefaultStation(marker) {
 
   marker.setStyle({
@@ -942,7 +898,7 @@ function styleDefaultStation(marker) {
 }
 
 
-
+// darken station color on click
 function darkenColor(hex, factor = 0.65) {
 
   if (!hex) return hex;
@@ -986,12 +942,11 @@ function darkenColor(hex, factor = 0.65) {
   );
 }
 
+// parameterizing station marker colors, for ease of editing styles
 function applySelectedStyle(marker) {
 
   const currentStyle =
     marker.options;
-
-  // save original style
 
   marker._previousStyle = {
 
@@ -1041,7 +996,7 @@ function restoreMarkerStyle(marker) {
   delete marker._previousStyle;
 }
 
-
+// handle selecting variable
 function selectVariable(variableId) {
 
   const v =
@@ -1082,14 +1037,9 @@ function selectVariable(variableId) {
 
   banner.classList.add('visible');
 
-  // IF NON-STATION VARIABLE:
-  // open immediately
-
   const isStationBased =
     Array.isArray(v.station_ids) &&
     v.station_ids.length > 0;
-
-  // NON-STATION DATA
 
   if (!isStationBased) {
 
@@ -1097,8 +1047,6 @@ function selectVariable(variableId) {
 
     return;
   }
-
-  // STATION-BASED DATA
 
   highlightStations(v);
 
@@ -1115,10 +1063,7 @@ function selectVariable(variableId) {
   renderVariableSelectionPanel(v);
 }
 
-function escapeRe(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
+// creates side panel with variables
 function renderVariableSelectionPanel(v) {
 
   const content =
@@ -1153,8 +1098,11 @@ function renderVariableSelectionPanel(v) {
       font-size:11px;
       line-height:1.8;
     ">
+    <b>Dataset:</b> ${v.dataset_name || ''}
 
-      ${v.description || ''
+    <br><br>
+
+      <b>Variable description:</b> ${v.description || ''
     }
 
       <br><br>
@@ -1169,33 +1117,28 @@ function renderVariableSelectionPanel(v) {
   `;
 }
 
+// after clear, returns side panel to default
 function resetPanelUI() {
-
-  // header reset
   const header = document.getElementById('panel-header');
   if (header) header.style.display = 'none';
 
   document.getElementById('panel-station-id').textContent = '';
   document.getElementById('panel-coords').textContent = '';
 
-  // content reset
   const content = document.getElementById('panel-content');
   if (content) {
     content.classList.remove('visible');
     content.innerHTML = '';
   }
 
-  // empty state restore
   const empty = document.getElementById('panel-empty');
   if (empty) {
-    empty.style.display = 'flex'; // important: matches your CSS flex layout
+    empty.style.display = 'flex';
   }
 
-  // global state reset (important for your earlier bug)
   selectedVariable = null;
   window.currentStation = null;
 
-  // UI extras
   document.getElementById('clear-btn')?.classList.remove('visible');
 
   const banner = document.getElementById('search-banner');
@@ -1205,7 +1148,7 @@ function resetPanelUI() {
   }
 }
 
-// --- Highlight stations ---
+// highlight stations after variable selection
 function highlightStations(variable) {
 
   clearHighlights();
@@ -1279,7 +1222,6 @@ function handleVariableClick(variableId) {
 
   selectVariable(variableId);
 
-  // always try to open after state settles
   requestAnimationFrame(() => {
     if (window.currentStation) {
       openVariableModal(variable);
@@ -1294,7 +1236,6 @@ function clearAll() {
   closeDropdown();
   clearHighlights();
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  //document.getElementById('search-banner').classList.remove('visible');
   document.getElementById('clear-btn').classList.remove('visible');
   document.getElementById('search-banner').classList.remove('visible');
   resetPanelUI();
@@ -1354,18 +1295,15 @@ function openVariableModal(v) {
     return;
   }
 
-  // prevent backdrop click bubbling
   modal.onclick = (e) => {
     e.stopPropagation();
   };
 
-  // title
   title.textContent =
     v.display_name ||
     v.variable_name ||
     "Dataset";
 
-  // body
   body.innerHTML = `
 
     <div class="variable-description">
@@ -1404,10 +1342,8 @@ function openVariableModal(v) {
     </div>
   `;
 
-  // clear footer
   footer.innerHTML = "";
 
-  // build URL safely
   let url = "#";
 
   try {
@@ -1448,7 +1384,6 @@ function openVariableModal(v) {
     );
   }
 
-  // force https for deployed app compatibility
   if (
     url &&
     url.startsWith("http://")
@@ -1466,7 +1401,6 @@ function openVariableModal(v) {
     url
   );
 
-  // create REAL anchor link
   const link =
     document.createElement("a");
 
@@ -1488,11 +1422,6 @@ function openVariableModal(v) {
   footer.appendChild(
     link
   );
-
-  // external dataset warning
-  // footer.appendChild(
-  //   warning
-  // );
 
   if (!v.station_based) {
     if (warning) {
@@ -1532,9 +1461,71 @@ function closeModal(event) {
   //clearAll();
 }
 
+async function initializeApp() {
 
+  try {
 
-// --- Boot ---
-loadStations();
-loadStationGroups();
-loadVariables();
+    await Promise.all([
+      loadStations(),
+      loadStationGroups(),
+      loadVariables()
+    ]);
+
+  } catch (err) {
+
+    console.error(
+      "Initialization failed:",
+      err
+    );
+
+  } finally {
+
+    const overlay =
+      document.getElementById(
+        "loading-overlay"
+      );
+
+    if (overlay) {
+
+      overlay.style.display =
+        "none";
+    }
+
+    if (
+      !localStorage.getItem(
+        "aboutSeen"
+      )
+    ) {
+
+      showAboutModal();
+
+      localStorage.setItem(
+        "aboutSeen",
+        "true"
+      );
+    }
+  }
+}
+
+function showAboutModal() {
+
+  document.getElementById(
+    "about-backdrop"
+  ).style.display = "flex";
+
+  localStorage.setItem(
+    "aboutSeen",
+    "true"
+  );
+}
+
+function hideAboutModal() {
+
+  document.getElementById(
+    "about-backdrop"
+  ).style.display =
+    "none";
+}
+
+// start
+initializeApp();

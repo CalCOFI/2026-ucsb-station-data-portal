@@ -45,21 +45,25 @@
 
   <div class="main">
     <div id="map"></div>
-    <div class="panel" id="panel">
-      <div class="panel-empty" id="panel-empty">
-        <div class="panel-empty-icon">🌊</div>
-        <div class="panel-empty-text">Click any station<br>to explore its data. Note some stations have no data & will be blank</div>
-      </div>
-            <button id="station-back-button" class="side-back-button">
-        ← Back (currently under development)
-      </button>
-      <div class="panel-header" id="panel-header" style="display:none">
-        <div class="panel-station-id" id="panel-station-id"></div>
-        <div class="panel-coords" id="panel-coords"></div>
-      </div>
-      <div class="panel-content" id="panel-content"></div>
-
+    <div id="panel-resizer" class="panel-resizer">
     </div>
+    <aside id="side-panel" class="panel">
+      <div class="panel" id="panel">
+        <div id="panel-toggle" class="panel-toggle" onclick="togglePanel()">
+          ❯
+        </div>
+        <div class="panel-empty" id="panel-empty">
+          <div class="panel-empty-icon">🌊</div>
+          <div class="panel-empty-text">Click any station<br>to explore its data. Note some stations have no data & will
+            be blank</div>
+        </div>
+        <div class="panel-header" id="panel-header" style="display:none">
+          <div class="panel-station-id" id="panel-station-id"></div>
+          <div class="panel-coords" id="panel-coords"></div>
+        </div>
+        <div class="panel-content" id="panel-content"></div>
+      </div>
+    </aside>
   </div>
 
   <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
@@ -81,6 +85,92 @@
     </div>
   </div>
 
+  <!-- About / Disclaimer -->
+
+  <div id="about-backdrop" class="about-backdrop">
+
+    <div id="about-modal" class="about-modal">
+
+      <div class="about-header">
+        <hgroup>
+          <h2>About CalCOFI Data Explorer</h2>
+          <p style="font-size: 12px;"><i>This app is better suited for viewing on a computer, mobile displays are not
+              fully supported.</i></p>
+        </hgroup>
+        <button class="about-minimize" onclick="hideAboutModal()">
+
+          X
+        </button>
+
+      </div>
+
+      <div class="about-content">
+
+        <p>
+          CalCOFI Data Explorer is a prototype data
+          discovery tool developed by <a href="https://www.linkedin.com/in/nicolezxu/" target="_blank">Nicole Xu</a>, <a
+            href="https://www.linkedin.com/in/aashish-krishnan/" target="_blank">Aashish Krishnan</a>, and <a
+            href="https://www.linkedin.com/in/qiongwen-cao-b0955b242/" target="_blank">Qiongwen (Lucy) Cao</a>,
+          a team of students from the University of California, Santa Barbara as part of the
+          <a href="https://pstat197.github.io/" target="_blank">UCSB Data Science Capstone Program</a>, in partnership
+          with <a href="https://calcofi.org/" target="_blank">CalCOFI</a>, <a href="https://caseagrant.ucsd.edu/"
+            target="_blank">CA SeaGrant</a>, and <a href="https://scripps.ucsd.edu/" target="_blank">Scripps Institute
+            of Oceanography</a>, under the
+          direction of <a href="https://www.linkedin.com/in/erin-satterthwaite-309a79164/" target="_blank">Dr. Erin
+            Satterthwaite</a>.
+        </p>
+
+        <p>
+          The application aggregates metadata from
+          multiple marine science repositories to
+          help users discover variables, stations,
+          and datasets across the California Current
+          Ecosystem.
+        </p>
+        <br>
+        <h3>Disclaimers</h3>
+
+        <ul>
+
+          <li>
+            This app is still <b><u>under development</u></b>. Many features are a work in progress, such as the station variable
+            lists which only display <u>hydrographic data</u> as of this moment.
+            Please use the search bar to explore the full range of available data.
+          </li>
+
+          <li>
+            This application does not host the
+            underlying scientific data. Data availability and metadata are
+            provided by external organizations.
+            <ul>
+              <li>
+                Dataset contents, coverage, and access
+                policies may change without notice.
+              </li>
+              <li>
+                Users should consult the original data
+                providers for authoritative information.
+              </li>
+            </ul>
+          </li>
+
+
+
+
+
+        </ul>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Floating info button -->
+
+  <button id="about-button" onclick="showAboutModal()">
+    ⓘ
+  </button>
 
   <script src="app.js"></script>
 </body>
