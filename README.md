@@ -2,7 +2,10 @@
 
 An interactive map-based portal for exploring oceanographic and marine ecosystem data collected at CalCOFI stations along the California coast.
 
-Built as part of the PSTAT 197 Capstone project in collaboration with CalCOFI, SeaGrant, and Scripps Institution of Oceanography.
+Built as part of the UCSB PSTAT 197 Capstone project in collaboration with CalCOFI, CA SeaGrant, and Scripps Institution of Oceanography.
+Team: Nicole Xu, Aashish Krishnan, Qiongwen (Lucy) Cao
+Project Mentor: Dr. Erin Satterthwaite
+Project Advisor: Dr. Tony Coburn
 
 ---
 
