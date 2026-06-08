@@ -387,10 +387,6 @@ for _, row in df.iterrows():
         })
 
 
-# =====================================================
-# EUPHAUSIID SPECIES
-# =====================================================
-
 EUPHAUSIA_FILE = "metadata/euphausia.txt"
 
 try:
