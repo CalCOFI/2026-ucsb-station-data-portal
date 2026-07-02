@@ -926,3 +926,92 @@ select optgroup {
     font-size: 12px;
   }
 }
+/* ============================================================
+   Integrated-DB coverage view (station-grid refactor, 2026-07)
+   ============================================================ */
+:root { --c: #4dabf7; }
+
+/* visibility reconciliation */
+.about-backdrop { display: none !important; }
+.about-backdrop.open { display: flex !important; }
+.panel-content { display: block; }
+
+/* station coverage summary strip */
+.cov-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin: 4px 0 14px;
+}
+.cov-summary > div {
+  background: var(--panel, #24272b); border: 1px solid var(--border, #3a3f44);
+  border-radius: 6px; padding: 8px 6px; text-align: center;
+}
+.cov-summary .k { display: block; font-size: 9px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted, #9aa0a6); }
+.cov-summary .v { display: block; font-size: 16px; font-weight: 700;
+  color: var(--text, #e6e9ed); margin-top: 2px; }
+.cov-empty { color: var(--muted, #9aa0a6); font-family: 'Instrument Serif', serif;
+  font-size: 16px; padding: 24px 8px; text-align: center; }
+
+/* per-dataset coverage card */
+.ds-card {
+  border: 1px solid var(--border, #3a3f44); border-left: 3px solid var(--c);
+  border-radius: 6px; padding: 10px 11px; margin-bottom: 10px;
+  background: color-mix(in srgb, var(--c) 6%, var(--panel, #24272b));
+}
+.ds-head { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+.ds-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; }
+.ds-label { font-weight: 700; font-size: 13px; color: var(--text, #e6e9ed); }
+.ds-realm { margin-left: auto; font-size: 9px; text-transform: uppercase;
+  letter-spacing: .06em; padding: 2px 6px; border-radius: 999px; }
+.ds-realm.env { background: rgba(77,171,247,.18); color: #74c0fc; }
+.ds-realm.bio { background: rgba(105,219,124,.16); color: #8ce99a; }
+.ds-stats { display: flex; flex-direction: column; gap: 2px; font-size: 11px;
+  color: var(--muted, #c1c7cd); margin-bottom: 8px; }
+.bars-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted, #9aa0a6); margin: 6px 0 3px; }
+
+/* year sparkline bars */
+.bars { display: flex; align-items: flex-end; gap: 4px; }
+.bars.empty { color: var(--muted, #6c757d); font-size: 10px; }
+.bars .yl { font-size: 9px; color: var(--muted, #9aa0a6); flex: none; padding-bottom: 1px; }
+.ybars { display: flex; align-items: flex-end; gap: 1px; height: 38px; flex: 1;
+  overflow: hidden; }
+.ybar { flex: 1 1 0; min-width: 1px; border-radius: 1px 1px 0 0; }
+
+/* month seasonality cells */
+.mbars { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; }
+.mbar { font-size: 8px; text-align: center; color: #0b0c0e; font-weight: 700;
+  border-radius: 2px; padding: 3px 0; line-height: 1; }
+
+/* dropdown items (coverage view) */
+.dd-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  cursor: pointer; border-bottom: 1px solid var(--border, #2c3036); }
+.dd-item:hover, .dd-item.focused { background: rgba(77,171,247,.12); }
+.dd-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dd-name { color: var(--text, #e6e9ed); font-size: 12px; font-weight: 700; }
+.dd-meta { margin-left: auto; color: var(--muted, #9aa0a6); font-size: 10px; }
+.dd-empty { padding: 10px; color: var(--muted, #9aa0a6); font-size: 12px; }
+
+/* variable panel */
+.var-meta { font-size: 12px; color: var(--muted, #c1c7cd); display: flex;
+  flex-direction: column; gap: 4px; }
+.var-meta .k { color: var(--muted, #9aa0a6); text-transform: uppercase;
+  font-size: 9px; letter-spacing: .06em; margin-right: 4px; }
+.var-desc { color: var(--text, #cfd4da); margin-top: 4px; }
+.src-link { display: inline-block; margin-top: 9px; font-size: 12px;
+  color: var(--c); text-decoration: none; }
+.src-link:hover { text-decoration: underline; }
+.var-hint { font-size: 11px; color: var(--muted, #9aa0a6); margin-top: 10px;
+  font-family: 'Instrument Serif', serif; }
+
+/* collapsed side panel */
+#side-panel.collapsed { width: 30px !important; min-width: 30px; }
+#side-panel.collapsed .panel-content,
+#side-panel.collapsed .panel-header,
+#side-panel.collapsed .panel-empty { display: none !important; }
+
+/* keep coverage cards within the panel width */
+.panel-content { overflow-x: hidden; box-sizing: border-box; padding-right: 12px; }
+.ds-card, .cov-summary, .var-panel, .bars, .mbars { box-sizing: border-box; max-width: 100%; }
+.ds-stats span { overflow-wrap: anywhere; }
+.ybars { min-width: 0; }
