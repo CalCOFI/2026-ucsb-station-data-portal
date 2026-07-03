@@ -29,7 +29,7 @@ const dsMeta = id => DATASET_META[id] || { label: id, realm: 'bio', color: '#adb
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
 let STATIONS = [], VARS = [];
-const BY_KEY = {}, MARKERS = {}, DS_STATIONS = {};   // dataset_id -> Set(grid_key)
+const BY_KEY = {}, MARKERS = {}, DS_STATIONS = {};   // dataset_key -> Set(grid_key)
 let selectedVar = null;
 
 // ---- load prebuilt data ----
@@ -40,7 +40,7 @@ Promise.all([
   STATIONS = st; VARS = va;
   STATIONS.forEach(s => {
     BY_KEY[s.grid_key] = s;
-    (s.datasets || []).forEach(d => { (DS_STATIONS[d.dataset_id] ||= new Set()).add(s.grid_key); });
+    (s.datasets || []).forEach(d => { (DS_STATIONS[d.dataset_key] ||= new Set()).add(s.grid_key); });
   });
   renderStations();
   wireSearch();
@@ -96,7 +96,7 @@ function monthBars(months, color) {
   return `<div class="mbars">${cells}</div>`;
 }
 function datasetCard(d) {
-  const meta = dsMeta(d.dataset_id);
+  const meta = dsMeta(d.dataset_key);
   const depth = (d.depth_min != null || d.depth_max != null)
     ? `${Math.round(d.depth_min ?? 0)}–${Math.round(d.depth_max ?? 0)} m` : 'depth n/a';
   return `<div class="ds-card" style="--c:${meta.color}">
@@ -156,7 +156,7 @@ function renderDropdown(q) {
   if (!q) { dropdown.classList.remove('open'); return; }
   const hits = VARS.filter(v => varMatch(v, q)).slice(0, 40);
   dropdown.innerHTML = hits.length ? hits.map(v => {
-    const meta = dsMeta(v.dataset_id);
+    const meta = dsMeta(v.dataset_key);
     return `<div class="dd-item" data-id="${encodeURIComponent(v.variable_id)}">
         <span class="dd-dot" style="background:${meta.color}"></span>
         <span class="dd-name">${v.display_name || v.name}</span>
@@ -178,8 +178,8 @@ function selectVariable(vid) {
   showVariablePanel(v);
 }
 function highlight(v) {
-  const meta = dsMeta(v.dataset_id);
-  const set = DS_STATIONS[v.dataset_id] || new Set();
+  const meta = dsMeta(v.dataset_key);
+  const set = DS_STATIONS[v.dataset_key] || new Set();
   STATIONS.forEach(s => {
     const on = set.has(s.grid_key), mk = MARKERS[s.grid_key];
     if (on) mk.setStyle({ ...baseStyle(s), color: '#fff', weight: 1.5,
@@ -192,7 +192,7 @@ function highlight(v) {
   banner.style.display = 'block';
 }
 function showVariablePanel(v) {
-  const meta = dsMeta(v.dataset_id);
+  const meta = dsMeta(v.dataset_key);
   document.getElementById('panel-empty').style.display = 'none';
   document.getElementById('panel-header').style.display = '';
   document.getElementById('panel-station-id').textContent = v.display_name || v.name;

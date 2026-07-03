@@ -25,11 +25,11 @@ SELECT grid_key, line, station, pattern, shore, zone, area_km2,
 FROM read_parquet(u('swfsc_ichthyo/grid.parquet'));
 
 -- unified observation stream: one row per measurement (or per sample where no
--- measurement table), carrying dataset_id + grid_key + cruise_key + datetime +
+-- measurement table), carrying dataset_key + grid_key + cruise_key + datetime +
 -- depth range. This is a build-time preview of the Part B v_obs_env/v_obs_bio views.
 CREATE TEMP TABLE obs AS
 -- calcofi_bottle (env): measurement -> bottle(depth) -> casts(grid_key,time)
-SELECT 'calcofi_bottle' AS dataset_id, 'env' AS realm, c.grid_key,
+SELECT 'calcofi_bottle' AS dataset_key, 'env' AS realm, c.grid_key,
        CAST(c.cruise_key AS VARCHAR) AS cruise_key,
        CAST(c.datetime_start_utc AS TIMESTAMP) AS datetime,
        CAST(b.depth_m AS DOUBLE) AS depth_min, CAST(b.depth_m AS DOUBLE) AS depth_max,
@@ -115,26 +115,26 @@ FROM read_parquet(u('calcofi_bird_mammal_census/bird_mammal_observation.parquet'
 JOIN read_parquet(u('calcofi_bird_mammal_census/bird_mammal_transect.parquet')) tr USING (gis_key)
 WHERE tr.grid_key IS NOT NULL;
 
--- per (grid_key, dataset_id) coverage; clamp sentinel/absurd depths (e.g. -888)
+-- per (grid_key, dataset_key) coverage; clamp sentinel/absurd depths (e.g. -888)
 CREATE TEMP TABLE cov AS
-SELECT grid_key, dataset_id, any_value(realm) AS realm,
+SELECT grid_key, dataset_key, any_value(realm) AS realm,
        min(datetime)::DATE AS time_min, max(datetime)::DATE AS time_max,
        min(CASE WHEN depth_min BETWEEN 0 AND 6000 THEN depth_min END) AS depth_min,
        max(CASE WHEN depth_max BETWEEN 0 AND 6000 THEN depth_max END) AS depth_max,
        count(*) AS n_obs,
        count(DISTINCT sample_key) AS n_samples,
        count(DISTINCT cruise_key) AS n_surveys
-FROM obs GROUP BY grid_key, dataset_id;
+FROM obs GROUP BY grid_key, dataset_key;
 
 CREATE TEMP TABLE ybin AS
-SELECT grid_key, dataset_id, list(struct_pack(y := yr, n := n) ORDER BY yr) AS years
-FROM (SELECT grid_key, dataset_id, year(datetime) AS yr, count(*) AS n
+SELECT grid_key, dataset_key, list(struct_pack(y := yr, n := n) ORDER BY yr) AS years
+FROM (SELECT grid_key, dataset_key, year(datetime) AS yr, count(*) AS n
       FROM obs WHERE datetime IS NOT NULL GROUP BY 1,2,3)
 GROUP BY 1,2;
 
 CREATE TEMP TABLE mbin AS
-SELECT grid_key, dataset_id, list(struct_pack(m := mo, n := n) ORDER BY mo) AS months
-FROM (SELECT grid_key, dataset_id, month(datetime) AS mo, count(*) AS n
+SELECT grid_key, dataset_key, list(struct_pack(m := mo, n := n) ORDER BY mo) AS months
+FROM (SELECT grid_key, dataset_key, month(datetime) AS mo, count(*) AS n
       FROM obs WHERE datetime IS NOT NULL GROUP BY 1,2,3)
 GROUP BY 1,2;
 
@@ -142,17 +142,17 @@ GROUP BY 1,2;
 CREATE TEMP TABLE ds AS
 SELECT c.grid_key,
        list(struct_pack(
-         dataset_id := c.dataset_id, realm := c.realm,
+         dataset_key := c.dataset_key, realm := c.realm,
          time_min := c.time_min, time_max := c.time_max,
          depth_min := c.depth_min, depth_max := c.depth_max,
          n_obs := c.n_obs, n_samples := c.n_samples, n_surveys := c.n_surveys,
-         years := y.years, months := m.months) ORDER BY c.dataset_id) AS datasets,
+         years := y.years, months := m.months) ORDER BY c.dataset_key) AS datasets,
        count(*) AS n_datasets,
        min(c.time_min) AS time_min, max(c.time_max) AS time_max,
        sum(c.n_obs) AS n_obs, sum(c.n_samples) AS n_samples
 FROM cov c
-LEFT JOIN ybin y USING (grid_key, dataset_id)
-LEFT JOIN mbin m USING (grid_key, dataset_id)
+LEFT JOIN ybin y USING (grid_key, dataset_key)
+LEFT JOIN mbin m USING (grid_key, dataset_key)
 GROUP BY c.grid_key;
 
 -- distinct cruises per station across all datasets
