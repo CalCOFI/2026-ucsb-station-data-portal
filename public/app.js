@@ -16,736 +16,885 @@ let selectedStation = null;
 
 // check the format of stationID for specific erddap dataset
 function usesStaId(datasetId) {
-
   return [
-
     "siocalcofiHydroCast",
     "siocalcofiHydroBottle"
-
   ].includes(datasetId);
 }
 
-// make sure stations are in their correct groupings
+// load station group lookup (dataset -> [station_ids])
 async function loadStationGroups() {
-
-  const response =
-    await fetch(
-      "./data/station_groups.json"
-    );
-
-  window.stationGroups =
-    await response.json();
-
-  console.log(
-    Object.keys(
-      window.stationGroups
-    ))
+  const response = await fetch("./data/station_groups.json");
+  window.stationGroups = await response.json();
 }
 
-// create erddap access url
+// resolve the outbound link for a variable's source dataset (erddap/euphausiid/zoodb/other)
+function getDatasetUrl(v) {
+  let url = "#";
+  try {
+    if (v.platform === "erddap") {
+      url = buildERDDAPUrl(v);
+    } else if (v.platform === "euphausiid") {
+      url = buildEuphausiidUrl(v);
+    } else if (v.platform === "zoodb") {
+      url = buildZooDBUrl(v);
+    } else {
+      url = v.source?.access_url || "#";
+    }
+  } catch (err) {
+    console.error("URL generation failed:", err);
+  }
+  if (url && url.startsWith("http://")) {
+    url = url.replace("http://", "https://");
+  }
+  return url;
+}
+
+// build erddap query url
 function buildERDDAPUrl(variable) {
-
-  const dataset =
-    variable.dataset_id;
-
-  const base =
-    variable.source?.access_url ||
-    variable.url;
-
+  const dataset = variable.dataset_id;
+  const base = variable.source?.access_url || variable.url;
   if (!base) return null;
 
-  const selected =
-    window.selectedVariables || [variable];
-
+  const selected = window.selectedVariables || [variable];
   const variableNames = selected
     .filter(v => v.dataset_id === dataset)
     .map(v => v.variable_name)
     .filter(Boolean);
 
-  const fields = [
-
-    "time",
-
-    "latitude",
-
-    "longitude"
-  ];
-
-  if (
-    usesStaId(dataset)
-  ) {
-
+  const fields = ["time", "latitude", "longitude"];
+  if (usesStaId(dataset)) {
     fields.push("sta_id");
-
   } else {
-
     fields.push("line");
     fields.push("station");
   }
-
   fields.push(...variableNames);
 
-  let url =
-    `https://oceanview.pfeg.noaa.gov/erddap/tabledap/${dataset}.html?` +
+  let url = `https://oceanview.pfeg.noaa.gov/erddap/tabledap/${dataset}.html?` +
     encodeURIComponent(fields.join(","));
 
-  if (window.currentStation
-  ) {
-
+  if (window.currentStation) {
     const s = window.currentStation;
-
-    if (
-      usesStaId(dataset)
-    ) {
-
-      url +=
-        `&sta_id=` +
-        encodeURIComponent(
-          `"${s.station_id}"`
-        );
-    }
-
-    else {
-
-
-      const parsed =
-        parseStationId(
-          s.station_id
-        );
-
+    if (usesStaId(dataset)) {
+      url += `&sta_id=` + encodeURIComponent(`"${s.station_id}"`);
+    } else {
+      const parsed = parseStationId(s.station_id);
       if (parsed) {
-
-        url +=
-          `&line=` +
-          encodeURIComponent(
-            parsed.line
-          );
-
-        url +=
-          `&station=` +
-          encodeURIComponent(
-            parsed.station
-          );
+        url += `&line=` + encodeURIComponent(parsed.line);
+        url += `&station=` + encodeURIComponent(parsed.station);
       }
     }
   }
 
-
   selected.forEach(v => {
-
-    if (
-      v.constraint_min !== undefined &&
-      v.variable_name
-    ) {
-
-      url +=
-        `&${encodeURIComponent(v.variable_name + ">=")}` +
-        `${encodeURIComponent(v.constraint_min)}`;
+    if (v.constraint_min !== undefined && v.variable_name) {
+      url += `&${encodeURIComponent(v.variable_name + ">=")}${encodeURIComponent(v.constraint_min)}`;
     }
-
-    if (
-      v.constraint_max !== undefined &&
-      v.variable_name
-    ) {
-
-      url +=
-        `&${encodeURIComponent(v.variable_name + "<=")}` +
-        `${encodeURIComponent(v.constraint_max)}`;
+    if (v.constraint_max !== undefined && v.variable_name) {
+      url += `&${encodeURIComponent(v.variable_name + "<=")}${encodeURIComponent(v.constraint_max)}`;
     }
   });
 
   return url;
 }
 
-// create epuhausid access url
 function buildEuphausiidUrl(variable) {
-
-  const station =
-    window.currentStation;
-
-  const parsed =
-    parseStationId(
-      station?.station_id
-    );
-
-  const params =
-    new URLSearchParams();
-
+  const station = window.currentStation;
+  const parsed = parseStationId(station?.station_id);
+  const params = new URLSearchParams();
   params.set("mode", "save");
-
   params.set("beginYear", "1955");
   params.set("endYear", "2010");
-
-  for (let m = 1; m <= 12; m++) {
-    params.append("month[]", m);
-  }
-
+  for (let m = 1; m <= 12; m++) { params.append("month[]", m); }
   params.append("cruise[]", "");
-
   params.set("timeType", "all");
-
   params.set("locType", "station");
-
   if (parsed) {
-
-    params.set(
-      "beginLine",
-      parsed.line
-    );
-
-    params.set(
-      "endLine",
-      parsed.line
-    );
-
-    params.set(
-      "beginStation",
-      parsed.station
-    );
-
-    params.set(
-      "endStation",
-      parsed.station
-    );
+    params.set("beginLine", parsed.line);
+    params.set("endLine", parsed.line);
+    params.set("beginStation", parsed.station);
+    params.set("endStation", parsed.station);
   }
-
-  params.append(
-    "GS[]",
-    variable.variable_name
-  );
-
-  params.append(
-    "PS[]",
-    ".*"
-  );
-
+  params.append("GS[]", variable.variable_name);
+  params.append("PS[]", ".*");
   params.set("sex", "%male");
-
   params.set("beginSize", "");
   params.set("endSize", "");
-
-  params.set(
-    "calcType",
-    "individual"
-  );
-
-  params.set(
-    "calcUnit",
-    "m2"
-  );
-
+  params.set("calcType", "individual");
+  params.set("calcUnit", "m2");
   params.set("paginate", "1");
   params.set("nlines", "100");
-
-  return (
-    "https://oceaninformatics.ucsd.edu/euphausiid/save.php?" +
-    params.toString()
-  );
+  return "https://oceaninformatics.ucsd.edu/euphausiid/save.php?" + params.toString();
 }
 
-// create zoodb access url
 function buildZooDBUrl(variable) {
-
-  const station =
-    window.currentStation;
-
-  const parsed =
-    parseStationId(
-      station?.station_id
-    );
-
-  const params =
-    new URLSearchParams();
-
+  const station = window.currentStation;
+  const parsed = parseStationId(station?.station_id);
+  const params = new URLSearchParams();
   params.set("mode", "save");
-
   params.set("beginYear", "2000");
   params.set("endYear", "2010");
-
-  for (let m = 1; m <= 12; m++) {
-    params.append("month[]", m);
-  }
-
+  for (let m = 1; m <= 12; m++) { params.append("month[]", m); }
   params.append("cruise[]", "");
-
   params.set("timeType", "all");
-
   params.set("locType", "station");
-
   if (parsed) {
-
-    params.set(
-      "beginLine",
-      parsed.line - 1
-    );
-
-    params.set(
-      "endLine",
-      parsed.line + 1
-    );
-
-    params.set(
-      "beginStation",
-      parsed.station - 1
-    );
-
-    params.set(
-      "endStation",
-      parsed.station + 1
-    );
+    params.set("beginLine", parsed.line - 1);
+    params.set("endLine", parsed.line + 1);
+    params.set("beginStation", parsed.station - 1);
+    params.set("endStation", parsed.station + 1);
   }
-
-  if (
-    variable.taxonomy?.higher_taxonomy
-  ) {
-
-    params.append(
-      "HT[]",
-      variable.taxonomy.higher_taxonomy
-    );
+  if (variable.taxonomy?.higher_taxonomy) {
+    params.append("HT[]", variable.taxonomy.higher_taxonomy);
   }
-
-  params.append(
-    "GS[]",
-    variable.variable_name
-  );
-
+  params.append("GS[]", variable.variable_name);
   params.append("PS[]", ".*");
-
   params.set("beginSize", "");
   params.set("endSize", "");
-
-  params.set(
-    "calcType",
-    "individual"
-  );
-
-  params.set(
-    "calcUnit",
-    "m2"
-  );
-
+  params.set("calcType", "individual");
+  params.set("calcUnit", "m2");
   params.set("pooled", "0");
-
-  return (
-    "https://oceaninformatics.ucsd.edu/zoodb/save.php?" +
-    params.toString()
-  );
+  return "https://oceaninformatics.ucsd.edu/zoodb/save.php?" + params.toString();
 }
 
-// make sure station id formats match
 function normalizeStationId(id) {
-
   if (!id) return "";
-
-  return String(id)
-    .replace(/"/g, "")
-    .trim();
+  return String(id).replace(/"/g, "").trim();
 }
 
-// read station urls
 function parseStationId(stationId) {
-
-  if (!stationId)
-    return null;
-
-  const clean =
-    stationId
-      .replace(/"/g, "")
-      .trim();
-
-  const parts =
-    clean.split(/\s+/);
-
-  if (parts.length !== 2)
-    return null;
-
-  return {
-
-    line:
-      parts[0],
-
-    station:
-      parts[1]
-  };
+  if (!stationId) return null;
+  const clean = stationId.replace(/"/g, "").trim();
+  const parts = clean.split(/\s+/);
+  if (parts.length !== 2) return null;
+  return { line: parts[0], station: parts[1] };
 }
 
-// opening stations
-function openStation(station) {
+// -------------------------------------------------------
+// Metadata field keywords — shown as summary line per tab
+// not as individual clickable rows
+// -------------------------------------------------------
+const METADATA_KEYWORDS = [
+  "time", "date", "latitude", "longitude", "lat", "lon",
+  "cast count", "bottle count", "bottle identifier",
+  "line and station", "station id", "depth"
+];
 
-  window.currentStation =
-    station;
+// Distinctive multi-word admin/identifier fields — safe to match anywhere
+// in the string since they can't collide with taxa/species names.
+const ADMIN_KEYWORDS = [
+  "latitude", "longitude",
+  "line and station", "line number", "actual line", "actual station",
+  "nominal calcofi", "organizational id", "original station identifier",
+  "cast id", "data descriptor code", "cloud amount code", "cloud type code",
+  "visibility code", "wave direction code", "weather code",
+  "civil twilight", "local apparent noon", "incubation start time",
+  "incubation end time", "reported station", "reported line number",
+  "time zone",
+];
 
-  document.getElementById(
-    'panel-empty'
-  ).style.display = 'none';
+// Single ambiguous words — only exact match to avoid over-catching
+const ADMIN_EXACT = ["year", "month", "station", "line"];
 
-  document.getElementById(
-    'panel-header'
-  ).style.display = 'block';
+const CRUISE_KEYWORDS = [
+  "cruise", "ship", "leg", "order occupied", "julian",
+  "quarter", "event", "data type"
+];
 
-  document.getElementById(
-    'panel-station-id'
-  ).textContent =
-    `Station ${station.station_id}`;
+// Fields to drop entirely — not shown as a row, not shown in "Also includes"
+// Replicate fields are no longer hidden outright — for some measurements
+// (e.g. alkalinity, DIC) the ONLY variables that exist are "Replicate 1"/
+// "Replicate 2", so excluding them entirely deleted the only way to reach
+// that data. Instead, fixDisplayName() strips the suffix so both
+// replicates render to the same label and merge via the existing
+// dataset-grouping logic (one row, not two).
+const REMOVE_KEYWORDS = [];
 
-  document.getElementById(
-    'panel-coords'
-  ).textContent =
-    `${station.lat.toFixed(4)}°N ` +
-    `${Math.abs(station.lon).toFixed(4)}°W`;
+// Map dataset_id to a clean tab label
+const DATASET_TAB_LABELS = {
+  "siocalcofiHydroBottle": "Hydrographic Bottle",
+  "siocalcofiHydroCast":   "Hydrographic Cast",
+  "erdCalCOFINOAAhydros":  "NOAA CTD",
+  "euphausiid":            "Euphausiids",
+  "zoodb":                 "Zooplankton",
+  "erdCalCOFIlrvcnt":      "Larval Fish",
+  "erdCalCOFIlrvsiz":      "Larval Fish",
+  "erdCalCOFIlrvstg":      "Larval Fish",
+  "erdCalCOFIeggcnt":      "Fish Eggs",
+  "erdCalCOFIeggstg":      "Fish Eggs",
+  "erdCalCOFIinvcnt":      "Invertebrates",
+  "erdCalCOFIinvsiz":      "Invertebrates",
+  "erdCalCOFItows":        "Net Tows",
+  "erdCalCOFIzoovol":      "Zooplankton Volume",
+  "erdCalCOFIcufes":       "CUFES",
+};
 
-  const content =
-    document.getElementById(
-      'panel-content'
-    );
+const ENTITY_TYPE_LABELS = {
+  "physical_variable":  "Physical",
+  "chemical_variable":  "Chemical",
+  "taxon":              "Taxa",
+  "scientific_variable":"Other measurements",
+  "scientific_dataset": "Dataset",
+};
 
-  content.classList.add('visible');
+const TAB_ORDER = [
+  "Hydrographic Bottle",
+  "Hydrographic Cast",
+  "NOAA CTD",
+  "Larval Fish",
+  "Fish Eggs",
+  "Invertebrates",
+  "Net Tows",
+  "Zooplankton",
+  "Zooplankton Volume",
+  "Euphausiids",
+  "CUFES",
+];
 
-  const key =
-    normalizeStationId(station.station_id);
-
-  const stationVariables =
-
-    window.stationVariableMap?.[
-    key
-    ] || [];
-
-  console.log(
-    key,
-    stationVariables.length
-  );
-
-  if (stationVariables.length === 0) {
-
-  content.innerHTML = `
-    <div style="
-      text-align:center;
-      padding:24px;
-      color:var(--muted);
-    ">
-      No variables are available at this station.
-    </div>
-  `;
-
-  return;
+function isMetadataField(displayName) {
+  const n = (displayName || "").toLowerCase().trim();
+  // exact match or starts-with to avoid partial matches
+  // e.g. "longitude" should not match "stylocheiron longicorne"
+  if (METADATA_KEYWORDS.some(k => n === k || n.startsWith(k + " ") || n.startsWith(k + ","))) return true;
+  if (ADMIN_KEYWORDS.some(k => n.includes(k))) return true;
+  if (ADMIN_EXACT.some(k => n === k)) return true;
+  return false;
 }
 
-  const bySource = {};
+function isRemovedField(displayName) {
+  const n = (displayName || "").toLowerCase().trim();
+  return REMOVE_KEYWORDS.some(k => n.includes(k));
+}
 
+function isCruiseField(displayName) {
+  const n = (displayName || "").toLowerCase().trim();
+  return CRUISE_KEYWORDS.some(k => n === k || n.startsWith(k + " ") || n.startsWith(k + ","));
+}
+
+function buildStationTabs(stationVariables) {
+  // group by tab label (dataset)
+  const tabs = {};
   stationVariables.forEach(v => {
-
-    const source =
-      v.provider || "";
-
-    const category =
-      v.entity_type || "Other";
-
-    if (!bySource[source])
-      bySource[source] = {};
-
-    if (!bySource[source][category])
-      bySource[source][category] = [];
-
-    bySource[source][category]
-      .push(v);
+    const label = DATASET_TAB_LABELS[v.dataset_id] || v.dataset_name || v.dataset_id;
+    if (!tabs[label]) tabs[label] = [];
+    tabs[label].push(v);
   });
 
-  content.innerHTML =
-    Object.entries(bySource)
-      .map(([source, cats]) => `
-
-      <div class="source-group">
-
-        ${Object.entries(cats)
-          .map(([cat, vars]) => `
-
-          <div class="category-sublabel">
-            ${cat}
-          </div>
-
-          ${vars.map(v => `
-
-            <div class="data-link"
-                 onclick='handleVariableClick("${v.variable_id}")'>
-
-              <span class="data-link-name">
-                ${v.display_name}  <i style="color: var(--muted)">[${v.dataset_name}]</i>
-              </span>
-
-            </div>
-
-          `).join('')}
-
-        `).join('')}
-
-      </div>
-
-    `).join('');
+  // sort tabs by TAB_ORDER
+  return Object.keys(tabs)
+    .sort((a, b) => {
+      const ai = TAB_ORDER.indexOf(a);
+      const bi = TAB_ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    })
+    .reduce((acc, k) => { acc[k] = tabs[k]; return acc; }, {});
 }
 
+// Keywords to exclude from the station panel's variable list. Hoisted to
+// module level (rather than a local const inside renderStationTab) so it
+// can be tested/audited independently, same as isMetadataField/isCruiseField.
+const PANEL_EXCLUDE = [
+  "quality", " quality", "flag", "bottle number", "bottle depth",
+  "bottle identifier", "cast count", "bottle count",
+  // pH already has its own clean field ("pH", from ph1); the un-numbered
+  // "Replicate" variant (ph2) isn't caught by the Replicate-N merge logic
+  // since its raw label has no trailing digit, so it needs its own exclude
+  // entry -- same fix already applied to the search dropdown/inventory
+  // panel via EXCLUDE_DISPLAY_KEYWORDS, just missing here until now.
+  "ph replicate",
+];
+function isPanelExcluded(displayName) {
+  const n = (displayName || "").toLowerCase();
+  return PANEL_EXCLUDE.some(k => n.includes(k));
+}
 
-// loading station information
+function renderStationTab(vars) {
+  // drop replicate/precision-of-replicate fields entirely — not shown
+  // as a row, not shown in "Also includes" either
+  vars = vars.filter(v => !isRemovedField(v.display_name));
+
+  // separate metadata, cruise, and scientific vars
+  const metaVars = vars.filter(v => isMetadataField(v.display_name));
+  const cruiseVars = vars.filter(v => isCruiseField(v.display_name));
+  const sciVars = vars.filter(v =>
+    !isMetadataField(v.display_name) &&
+    !isCruiseField(v.display_name) &&
+    !isPanelExcluded(v.display_name)
+  );
+
+  // group scientific vars by entity_type, alphabetically within each
+  // override entity_type for known misclassified variables
+  function getDisplayType(v) {
+    // Classify by the rendered label, not the raw display_name -- raw
+    // ERDDAP names are often abbreviated ("O2", "O2Sat") in ways that don't
+    // contain the obvious keyword even though the rendered label ("Oxygen
+    // (mL/L)", "Oxygen Saturation") clearly does.
+    const n = fixDisplayName(v.display_name || "").toLowerCase();
+    if (n.includes("c14") || n.includes("chlorophyll") || n.includes("phaeopigment") || n.includes("productivity")) {
+      return "Productivity & Pigments";
+    }
+    // entity_type was computed upstream (build_vars.py) against the terse
+    // ERDDAP variable_name code, not the readable display_name -- e.g.
+    // "t_degc" doesn't contain "temp" as a substring even though it IS
+    // temperature, so it fell through to the generic "scientific_variable"
+    // fallback and landed in "Other Measurements" while "r_temp" (Reported
+    // Potential Temperature) correctly matched and landed in Physical.
+    // Checking the display_name directly is more reliable; mirrors the
+    // same keyword grouping used for the portal-wide browse categories in
+    // build_vars.py's VARNAME_GROUP, so "Physical" here means the same
+    // thing it means everywhere else in the portal.
+    const PHYSICAL_KEYWORDS = ["temperature", "salinity", "density", "depth", "dynamic height", "secchi", "forel"];
+    const CHEMICAL_KEYWORDS = ["oxygen", "ph", "phosphate", "silicate", "nitrate", "nitrite", "ammonium",
+      "alkalinity", "dissolved inorganic carbon", "carbonate"];
+    if (PHYSICAL_KEYWORDS.some(k => n.includes(k))) return "Physical";
+    if (CHEMICAL_KEYWORDS.some(k => n.includes(k))) return "Chemical";
+    return ENTITY_TYPE_LABELS[v.entity_type] || "Other Measurements";
+  }
+
+  // Multiple variable_ids can share the same rendered label -- e.g. the
+  // same measurement appearing under more than one dataset, or replicate
+  // fields that collapse to one display name. groupVariablesByLabel()
+  // already solves this for the search dropdown and inventory accordion;
+  // reuse it here so the station panel shows one row per label instead of
+  // a raw, undeduplicated list.
+  const byType = {};
+  groupVariablesByLabel(sciVars).forEach(entries => {
+    const v = entries[0].v;
+    const type = getDisplayType(v);
+    if (!byType[type]) byType[type] = [];
+    byType[type].push(v);
+  });
+
+  const TYPE_ORDER = ["Physical", "Chemical", "Productivity & Pigments", "Taxa", "Other Measurements", "Dataset"];
+
+  const sciHTML = Object.keys(byType)
+    .sort((a, b) => {
+      const ai = TYPE_ORDER.indexOf(a);
+      const bi = TYPE_ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    })
+    .map(type => {
+      const sorted = byType[type].sort((a, b) =>
+        (a.display_name || "").localeCompare(b.display_name || "")
+      );
+      return `
+        <div class="var-type-label">${type}</div>
+        ${sorted.map(v => {
+          const rawLabel = (v.display_name === "All genera and species")
+            ? "Zooplankton (All Genera & Species)"
+            : v.display_name;
+          const label = fixDisplayName(rawLabel);
+          return `
+            <div class="data-link" onclick='handleVariableClick("${v.variable_id}")'>
+              <span class="data-link-name">${label}</span>
+            </div>
+          `;
+        }).join("")}
+      `;
+    }).join("");
+
+  // build dynamic metadata summary line
+  const metaSummary = metaVars.length > 0
+    ? `<div class="metadata-summary">
+        📍 Also includes: ${metaVars.map(v => v.display_name.toLowerCase()).sort().join(", ")}
+       </div>`
+    : "";
+
+  return sciHTML + metaSummary;
+}
+
+function openStation(station) {
+  window.currentStation = station;
+  document.getElementById("panel-empty").style.display = "none";
+  document.getElementById("panel-header").style.display = "block";
+  const backToInventory = document.getElementById("panel-back-inventory");
+  if (backToInventory) {
+    backToInventory.textContent = "← All Categories";
+    backToInventory.onclick = () => resetPanelUI();
+    backToInventory.style.display = "block";
+  }
+  document.getElementById("panel-station-id").textContent = `Station ${station.station_id}`;
+  document.getElementById("panel-coords").textContent =
+    `${station.lat.toFixed(4)}°N  ${Math.abs(station.lon).toFixed(4)}°W`;
+
+  const panelContent = document.getElementById("panel-content");
+  panelContent.classList.add("visible");
+
+  const key = normalizeStationId(station.station_id);
+  const stationVariables = window.stationVariableMap?.[key] || [];
+
+  if (stationVariables.length === 0) {
+    panelContent.innerHTML = `
+      <div class="panel-empty-msg">No variables recorded at this station.</div>`;
+    return;
+  }
+
+  const tabs = buildStationTabs(stationVariables);
+  const tabNames = Object.keys(tabs);
+  let activeTab = tabNames[0];
+
+  function renderTabs() {
+    panelContent.innerHTML = `
+      <div class="tab-bar">
+        ${tabNames.map(name => `
+          <button class="tab-btn ${name === activeTab ? "active" : ""}"
+            onclick="window._setStationTab('${name.replace(/'/g,"\'")}')">
+            ${name}
+          </button>
+        `).join("")}
+      </div>
+      <div class="tab-content">
+        ${renderStationTab(tabs[activeTab])}
+      </div>
+    `;
+  }
+
+  window._setStationTab = (name) => {
+    activeTab = name;
+    renderTabs();
+  };
+
+  renderTabs();
+}
+
 async function loadStations() {
-
   try {
-
-    const res = await fetch(
-      "./data/stations.json"
-    );
-
-    const data =
-      await res.json();
-
-    const stations =
-      Array.isArray(data)
-        ? data
-        : data.stations || [];
-
+    const res = await fetch("./data/stations.json");
+    const data = await res.json();
+    const stations = Array.isArray(data) ? data : data.stations || [];
 
     window.allStations = stations;
-
     window.stationMap = {};
-
     window.stationIdMap = {};
 
-    if (window.stationLayer) {
+    const totalEl = document.getElementById('station-total');
+    if (totalEl) totalEl.textContent = `${stations.length} CalCOFI Stations`;
 
-      map.removeLayer(
-        window.stationLayer
-      );
-    }
-
-    window.stationLayer =
-      L.layerGroup().addTo(map);
+    if (window.stationLayer) { map.removeLayer(window.stationLayer); }
+    window.stationLayer = L.layerGroup().addTo(map);
 
     stations.forEach(station => {
+      station.station_key = normalizeStationId(station.station_id);
+      window.stationMap[station.station_key] = station;
+      window.stationIdMap[station.station_id] = station;
 
-      station.station_key =
-        normalizeStationId(
-          station.station_id
-        );
+      if (station.lat == null || station.lon == null) return;
 
-      window.stationMap[
-        station.station_key
-      ] = station;
+      const marker = L.circleMarker([station.lat, station.lon], {
+        radius: 10, color: "#00c2ff", fillOpacity: 0.7
+      });
 
-      window.stationIdMap[
-        station.station_id
-      ] = station;
-
-
-      if (
-        station.lat == null ||
-        station.lon == null
-      ) {
-        return;
-      }
-
-      const marker =
-        L.circleMarker(
-          [station.lat, station.lon],
-          {
-            radius: 10,
-            color: "#00c2ff",
-            fillOpacity: 0.7
-          }
-        );
-
-      marker.stationData =
-        station;
-
-      marker.bindTooltip(
-
-        station.station_id,
-
-        {
-
-          direction: "top",
-
-          offset: [0, -8],
-
-          opacity: 0.9,
-
-          sticky: true
-        }
-      );
+      marker.stationData = station;
+      marker.bindTooltip(station.station_id, { direction: "top", offset: [0, -8], opacity: 0.9, sticky: true });
 
       marker.on("click", () => {
+        // Safety net: if a variable search's yellow highlights are still
+        // on the map but no variable is actively selected, clear them so
+        // the map doesn't visually lag behind the panel's real state.
+        if (!selectedVariable) clearHighlights();
+
+        if (window.selectedStation?.marker) {
+          restoreMarkerStyle(window.selectedStation.marker);
+        }
+        window.selectedStation = station;
+        applySelectedStyle(station.marker);
+        window.currentStation = station;
 
         if (selectedVariable) {
-
-          window.currentStation =
-            station;
-
+          // A variable is actively selected (via search/browse) -- the side
+          // panel is showing that variable's info, which the person may
+          // still be reading. Clicking a station shouldn't blow that away;
+          // the popup already covers this station's value for it, so just
+          // show that instead of also replacing the panel.
+          const key = normalizeStationId(station.station_id);
+          const stationVars = window.stationVariableMap?.[key] || [];
+          const hasVariable = stationVars.some(v => v.variable_id === selectedVariable.variable_id);
+          if (hasVariable) {
+            openVariableModal(selectedVariable);
+          }
+        } else {
+          // Browsing mode, no variable selected -- clicking a station opens
+          // the full "everything monitored here" tabs panel, same as before.
           openStation(station);
-
-          openVariableModal(
-            selectedVariable
-          );
-
-          return;
         }
-
-        if (
-          window.selectedStation?.marker
-        ) {
-
-          restoreMarkerStyle(
-            window.selectedStation.marker
-          );
-        }
-
-        window.selectedStation = station;
-
-        applySelectedStyle(
-          station.marker
-        );
-
-        openStation(station);
       });
 
       station.marker = marker;
-
-      marker.addTo(
-        window.stationLayer
-      );
-
-      console.log(
-        "station id",
-        station.station_id, "station key",
-        station.station_key
-      );
+      marker.addTo(window.stationLayer);
     });
 
-    console.log(
-      `Loaded ${stations.length} stations`
-    );
-
   } catch (err) {
-
-    console.error(
-      "Failed loading stations:",
-      err
-    );
+    console.error("Failed loading stations:", err);
   }
-
 }
 
-// loading variable information
+// Content keywords — checked FIRST, and these WIN even if the JSON already
+// has a browse_group set for this variable. Some datasets (notably CUFES,
+// and apparently the CTD/Hydrographic Cast dataset too) are mixed: they log
+// biological counts AND underway weather/physical readings in the same
+// table, but every row inherited one blanket browse_group value from the
+// dataset itself. Trusting that blindly is why "Start Wind Speed" stayed
+// under "Larval Fish & Eggs" and "Dry Bulb Temperature" stayed under
+// "Physical Oceanography" even after the dataset-level fallback was fixed —
+// the JSON's own browse_group was overriding the fallback entirely. This
+// function returns null (no override) when the name doesn't clearly signal
+// a specific category, so browse_group / dataset defaults still apply there.
+function contentKeywordGroup(v) {
+  const n = (v.display_name || v.variable_name || "").toLowerCase();
+  if (n.includes("ph") && (n === "ph" || n.startsWith("ph ") || n.includes("ph replicate")))
+    return "Carbonate system";
+  if (["phosphate","silicate","nitrate","nitrite","ammonium"].some(k => n.includes(k)))
+    return "Nutrients & chemistry";
+  if (["chlorophyll","phaeopigment","c14","productivity","pigment"].some(k => n.includes(k)))
+    return "Productivity & pigments";
+  if (["alkalinity","dic","dissolved inorganic carbon","carbonate","pco2"].some(k => n.includes(k)))
+    return "Carbonate system";
+  if (["wind","wave","weather","cloud","visibility","bulb","atmospheric","pump speed"].some(k => n.includes(k)))
+    return "Meteorology & sea state";
+  if (["temperature","salinity","density","oxygen","o2","pressure","depth","secchi","forel"].some(k => n.includes(k)))
+    return "Physical oceanography";
+  return null;
+}
+
+// Dataset-level fallback — only used when contentKeywordGroup() above found
+// no specific signal AND the JSON has no browse_group of its own.
+function runtimeGroup(v) {
+  const d = v.dataset_id || "";
+
+  if (["erdCalCOFIlrvcnt","erdCalCOFIlrvsiz","erdCalCOFIlrvstg",
+       "erdCalCOFIeggcnt","erdCalCOFIeggstg","erdCalCOFIinvcnt",
+       "erdCalCOFIinvsiz","erdCalCOFItows","erdCalCOFIcufes"].includes(d))
+    return "Larval fish & eggs";
+  if (["zoodb","erdCalCOFIzoovol","nt620vn7810",
+       "knb-lter-cce.188.4"].includes(d))
+    return "Plankton";
+  if (d === "euphausiid") return "Euphausiids (krill)";
+  if (["CAC_FI_SBAS_obs","CAC_FI_SBAS_sp","knb-lter-cce.262.2"].includes(d))
+    return "Seabirds & marine mammals";
+  if (["555783","ruizt/marine-mammal-edna",
+       "datazoo/catalogs/ccelter/datasets/159"].includes(d))
+    return "Microbial & genomics";
+  if (d === "gov.noaa.nodc:0301029") return "Carbonate system";
+  if (["ctd-cast-files/","underway/"].includes(d))
+    return "Raw data & external links";
+
+  return "Other";
+}
+
+// -------------------------------------------------------
+// FIX 1: loadVariables — do NOT overwrite station_ids
+// from variables.json with stationGroups lookup.
+// The data already has station_ids set correctly by
+// the fixed build_vars.py. Just use it directly.
+// -------------------------------------------------------
 async function loadVariables() {
-
   try {
+    const res = await fetch("./data/variables.json");
+    const raw = await res.json();
+    const variables = Array.isArray(raw) ? raw : raw.variables || [];
 
-    const res = await fetch(
-      "./data/variables.json"
-    );
-
-    const raw =
-      await res.json();
-
-    const variables =
-      Array.isArray(raw)
-        ? raw
-        : raw.variables || [];
-
-    window.allVariables =
-      variables;
-
-    console.log(window.allVariables)
-
-    console.log(
-      "Variables loaded:",
-      variables.length
-    )
+    window.allVariables = variables;
     window.variableMap = {};
-
     window.stationVariableMap = {};
 
+    // FIX: build browse groups while we load
+    window.browseGroups = {};
+
     variables.forEach(v => {
-
-      const variableId =
-        (
-          v.variable_id ||
-          `${v.dataset_id}::${v.variable_name}`
-        )
-          .trim()
-          .toLowerCase();
-
+      const variableId = (v.variable_id || `${v.dataset_id}::${v.variable_name}`)
+        .trim().toLowerCase();
       v.variable_id = variableId;
 
-      v.station_ids =
-        window.stationGroups?.[
-        v.station_group
-        ] || [];
+      // FIX: use station_ids from the JSON directly.
+      // Fall back to stationGroups only if station_ids is missing/empty
+      // (handles old-format JSON without the fix applied yet).
+      if (!v.station_ids || v.station_ids.length === 0) {
+        v.station_ids = window.stationGroups?.[v.station_group] || [];
+      }
 
+      // build station → variables reverse index
       v.station_ids.forEach(id => {
-
-        const key =
-          normalizeStationId(id);
-
-        if (
-          !window.stationVariableMap[
-          key
-          ]
-        ) {
-
-          window.stationVariableMap[
-            key
-          ] = [];
+        const key = normalizeStationId(id);
+        if (!window.stationVariableMap[key]) {
+          window.stationVariableMap[key] = [];
         }
-
-        window.stationVariableMap[
-          key
-        ].push(v);
+        window.stationVariableMap[key].push(v);
       });
 
-      window.variableMap[
-        variableId
-      ] = v;
+      window.variableMap[variableId] = v;
 
+      // FIX 2: index by browse_group for the dropdown panel.
+      // Content keywords win first (see contentKeywordGroup) even if the
+      // JSON already has a browse_group — that's what actually fixes the
+      // CUFES/CTD mixed-dataset miscategorization. Only fall through to
+      // the JSON's own browse_group, then the dataset-level default, when
+      // the variable's name gives no specific content signal.
+      const group = contentKeywordGroup(v) || v.browse_group || runtimeGroup(v);
+      if (!window.browseGroups[group]) window.browseGroups[group] = [];
+      window.browseGroups[group].push(v);
+    });
 
-    })
-      ;
+    // render inventory panel (right side)
+    // browse panel pills are hidden — inventory panel serves same purpose
+    renderBrowsePanel(); // still builds data, just hidden via CSS
+    renderInventoryPanel();
 
   } catch (err) {
-
-    console.error(
-      "Failed loading variables:",
-      err
-    );
+    console.error("Failed loading variables:", err);
   }
 }
 
+// -------------------------------------------------------
+// FIX 2: Browse panel — replaces blank-state UX
+// Shows all parameter groups as clickable pills so users
+// don't need to know a variable name to start exploring.
+// -------------------------------------------------------
+function renderBrowsePanel() {
+  const container = document.getElementById('browse-panel');
+  if (!container) return;
 
-// dropdown search ----
+  const groups = window.browseGroups || {};
+
+  // order: physical/chemical first, then biology, then taxa, then other
+  const ORDER = [
+    "Physical oceanography",
+    "Chemical oceanography",
+    "Meteorology",
+    "Biology",
+    "Euphausiids (krill)",
+    "Zooplankton (ZooDB)",
+    "QC / metadata",
+    "Other",
+  ];
+
+  // hide internal/QC groups that aren't useful for browsing
+  const HIDE_FROM_BROWSE = new Set(["QC / metadata", "Other"]);
+
+  const sortedGroups = Object.keys(groups)
+    .filter(g => !HIDE_FROM_BROWSE.has(g))
+    .sort((a, b) => {
+      const ai = ORDER.indexOf(a);
+      const bi = ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+
+  container.innerHTML = `
+    <div class="browse-label">Browse by category</div>
+    <div class="browse-groups">
+      ${sortedGroups.map(group => {
+        const count = groups[group].length;
+        return `
+          <button class="browse-pill" onclick="openBrowseGroup('${group.replace(/'/g, "\\'")}')">
+            ${group}
+            <span class="browse-count">${count}</span>
+          </button>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// Opens a browse group: shows dropdown pre-filtered to that group
+function openBrowseGroup(groupName) {
+  const vars = ((window.browseGroups || {})[groupName] || []).filter(v => !isExcludedFromBrowse(v));
+  const dropdown = document.getElementById('dropdown');
+
+  // mark the dropdown as showing a browse group (not a search)
+  window.browseGroupActive = groupName;
+
+  // populate dropdown with this group's variables
+  dropdown.classList.add('open');
+  dropdown.innerHTML = `
+    <div class="dropdown-group-header">
+      ${groupName} — ${vars.length} variables
+      <button class="dropdown-close-btn" onclick="closeDropdown()">✕</button>
+    </div>
+    ${vars.slice(0, 300).map(v => {
+      const rawLabel = (v.display_name === "All genera and species")
+        ? "Zooplankton (All Genera & Species)"
+        : v.display_name;
+      const label = fixDisplayName(rawLabel);
+      return `
+        <div class="dropdown-item" data-id="${v.variable_id}">
+          <div class="dropdown-name">
+            ${label}
+            <span style="color:var(--muted);margin-left:6px;font-size:10px;">
+              | ${v.dataset_name || v.dataset_id}
+              ${v.station_based ? "" : " | Underway/Transect"}
+            </span>
+          </div>
+        </div>
+      `;
+    }).join("")}
+    ${vars.length > 300 ? `<div class="dropdown-empty">Showing 300 of ${vars.length} — type to filter</div>` : ""}
+  `;
+}
+
+// -------------------------------------------------------
+// INVENTORY PANEL — shown in right panel when no station selected
+// Lists all browse categories with counts, each row clickable
+// -------------------------------------------------------
+
+const CATEGORY_ICONS = {
+  "Hydrography":                    "",
+  "Water Chemistry":                "",
+  "Primary Production":             "",
+  "Dissolved Inorganic Carbon (DIC)": "",
+  "Meteorology & Sea State":        "",
+  "Fish Eggs & Larvae":             "",
+  "Zooplankton":                    "",
+  "Euphausiids (krill)":            "",
+  "Genomics / eDNA":                "",
+  "Seabirds & Marine Mammals":      "",
+  "Raw Data & External Links":      "",
+};
+
+const HIDE_FROM_INVENTORY = new Set(["QC / metadata", "Other"]);
+
+
+// Expands/collapses a category inline within the panel (accordion),
+// instead of routing through the search dropdown. Search stays reserved
+// for free-text typed queries; this is pure browse-and-choose.
+function toggleInventoryGroup(groupName) {
+  window.expandedInventoryGroup =
+    (window.expandedInventoryGroup === groupName) ? null : groupName;
+  renderInventoryPanel();
+}
+
+function renderInventoryPanel() {
+  const empty = document.getElementById("panel-empty");
+  if (!empty) return;
+
+  const groups = window.browseGroups || {};
+
+  // ORDER uses current group names from browseGroups (old names until build_vars_v2.py runs)
+  // After build_vars_v2.py runs these will update to CalCOFI.org aligned names
+  const ALL_KEYS = Object.keys(groups).filter(g => !HIDE_FROM_INVENTORY.has(g));
+  const PREFERRED_ORDER = [
+    "Physical oceanography",
+    "Nutrients & chemistry",
+    "Productivity & pigments",
+    "Carbonate system",
+    "Meteorology & sea state",
+    "Larval fish & eggs",
+    "Plankton",
+    "Zooplankton (ZooDB)",
+    "Euphausiids (krill)",
+    "Microbial & genomics",
+    "Seabirds & marine mammals",
+    "Raw data & external links",
+    // New names after build_vars_v2.py runs:
+    "Hydrography",
+    "Water Chemistry",
+    "Primary Production",
+    "Dissolved Inorganic Carbon (DIC)",
+    "Meteorology & Sea State",
+    "Fish Eggs & Larvae",
+    "Zooplankton",
+    "Genomics / eDNA",
+    "Seabirds & Marine Mammals",
+    "Raw Data & External Links",
+  ];
+  const ORDER = [
+    ...PREFERRED_ORDER.filter(g => ALL_KEYS.includes(g)),
+    ...ALL_KEYS.filter(g => !PREFERRED_ORDER.includes(g))
+  ];
+
+  const rows = ORDER
+    .filter(g => groups[g] && !HIDE_FROM_INVENTORY.has(g))
+    .map(g => {
+      const count = groups[g].length;
+      const icon = CATEGORY_ICONS[g] || "📊";
+      const safeG = g.replace(/'/g, "\\'");
+      const isOpen = window.expandedInventoryGroup === g;
+      const arrow = isOpen ? "↓" : "→";
+
+      const groupedSubVars = isOpen
+        ? groupVariablesByLabel(groups[g].filter(v => !isExcludedFromBrowse(v)))
+        : [];
+
+      const subItems = isOpen
+        ? groupedSubVars.map(entries => {
+            const { v, rawLabel } = entries[0];
+            const label = fixDisplayName(rawLabel);
+            const datasetNames = [...new Set(entries.map(e => e.v.dataset_name || e.v.provider || e.v.dataset_id))];
+            const countBadge = (typeof v.sighting_count === "number")
+              ? `<span class="inventory-subitem-count">${v.sighting_count.toLocaleString()} sighted</span>`
+              : (typeof v.tow_occurrence_count === "number")
+              ? `<span class="inventory-subitem-count">${v.tow_occurrence_count.toLocaleString()} of ${v.total_tows_surveyed.toLocaleString()} tows</span>`
+              : "";
+            return `
+              <div class="inventory-subitem" onclick='event.stopPropagation(); selectVariable("${v.variable_id}")'>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+                  <span class="inventory-subitem-name">${label}</span>
+                  ${countBadge}
+                </div>
+                <span class="inventory-subitem-meta">${datasetNames.join("; ")}</span>
+              </div>
+            `;
+          }).join("")
+        : "";
+
+      const subList = isOpen
+        ? `<div class="inventory-sublist">${subItems || '<div style="color:var(--muted);padding:8px 12px;font-size:11px;">No parameters found.</div>'}</div>`
+        : "";
+
+      return `
+        <div class="inventory-row${isOpen ? ' inventory-row-open' : ''}" onclick="toggleInventoryGroup('${safeG}')">
+          <span class="inventory-icon">${icon}</span>
+          <span class="inventory-label">${toTitleCase(g)}</span>
+          <span class="inventory-count">${count}</span>
+          <span class="inventory-arrow">${arrow}</span>
+        </div>
+        ${subList}
+      `;
+    }).join("");
+
+  empty.innerHTML = `
+    <div class="inventory-panel">
+      <div class="inventory-title">WHAT CALCOFI MEASURES</div>
+      <div class="inventory-subtitle">Click a category below to see which stations record it, or click any station on the map to see everything measured there</div>
+      <div class="inventory-list">
+        ${rows || '<div style="color:var(--muted);padding:12px;">Loading...</div>'}
+      </div>
+    </div>
+  `;
+}
+
+// -------------------------------------------------------
+// Search dropdown (unchanged logic, improved rendering)
+// -------------------------------------------------------
 const searchInput = document.getElementById('search');
 const dropdown = document.getElementById('dropdown');
 
 dropdown.addEventListener("mousedown", (e) => {
-
   clearAll();
   const item = e.target.closest(".dropdown-item");
-
   if (!item) return;
-
   selectVariable(item.dataset.id);
-
   closeDropdown();
-
-});
-
-searchInput.addEventListener("input", (e) => {
-  renderDropdown(e.target.value);
 });
 
 searchInput.addEventListener('focus', () => {
+  // if a browse group is already showing, don't override it
+  if (window.browseGroupActive) return;
   openDropdown();
   renderDropdown(searchInput.value.trim());
 });
 
 searchInput.addEventListener('input', () => {
   dropdownFocusIdx = -1;
+  window.browseGroupActive = null; // user is typing, leave browse mode
   openDropdown();
   renderDropdown(searchInput.value.trim());
 });
@@ -769,408 +918,516 @@ searchInput.addEventListener('keydown', e => {
   }
 });
 
-
 searchInput.addEventListener("blur", () => {
   setTimeout(closeDropdown, 150);
 });
 
-searchInput.addEventListener('focusout', (e) => {
-  closeDropdown();
+// Close dropdown when clicking anywhere outside search area
+// but NOT when clicking browse pills or inventory rows (they open the dropdown)
+document.addEventListener("click", (e) => {
+  const searchBar = document.querySelector(".search-bar");
+  const browsePanel = document.getElementById("browse-panel");
+  const inventoryPanel = document.querySelector(".inventory-panel");
+  const isInsideSearch = searchBar?.contains(e.target);
+  const isInsideBrowse = browsePanel?.contains(e.target);
+  const isInsideInventory = inventoryPanel?.contains(e.target);
+  if (!isInsideSearch && !isInsideBrowse && !isInsideInventory) {
+    closeDropdown();
+    window.browseGroupActive = null;
+  }
 });
- 
-// ---
 
-//create dropdown that appears under search bar
+// Variables to hide from browse/search — QC, metadata, cruise admin fields
+const EXCLUDE_DISPLAY_KEYWORDS = [
+  // Cruise / admin
+  "cruise", "ship name", "ship code", "cast id", "bottle number",
+  "bottle identifier", "cast count", "bottle count",
+  "julian", "quarter", "order occupied", "data type", "leg",
+  "time zone", "twilight", "incubation", "gis_key", "idnum",
+  // Coordinates / time
+  "latitude", "longitude", "start latitude", "start longitude",
+  "start time", "end time", "stop time", "sample number",
+  // Quality / flags
+  "quality", " quality", "q_", "flag",
+  // Tow / net metadata
+  "tow type", "tow number", "net location", "net type",
+  "standard haul factor", "haul factor", "calcofi line", "calcofi station",
+  "wire angle", "wire volume", "wire length",
+  "time of", "sorting code", "preserved",
+  // Standalone time/date
+  "volume sampled",
+  // Taxonomic/QC identifiers — not a measurable parameter
+  "itis tsn", "calcofi species code", "proportion sorted",
+  // pH already has its own clean field; the un-numbered "Replicate"
+  // variant isn't caught by the Replicate-N merge logic and would
+  // otherwise show as a confusing near-duplicate
+  "ph replicate",
+];
+
+function isExactExclude(displayName) {
+  const n = (displayName || "").toLowerCase().trim();
+  const EXACT_EXCLUDE = new Set(["time", "date"]);
+  return EXACT_EXCLUDE.has(n);
+}
+
+function isExcludedFromBrowse(v) {
+  const n = (v.display_name || "").toLowerCase();
+  return isExactExclude(v.display_name) ||
+    EXCLUDE_DISPLAY_KEYWORDS.some(k => n.includes(k)) ||
+    isMetadataField(v.display_name) ||
+    isRemovedField(v.display_name);
+}
+
+// Shared by search dropdown AND the category accordion: groups variables
+// by their exact final rendered label. Different labels (e.g. "Salinity"
+// vs "Reported Salinity") stay separate on purpose — they may be genuinely
+// different columns, not just duplicates. Only variables that render to
+// the SAME label (e.g. "Oxygen" from both the Hydrographic Bottle dataset
+// and the Additional CTD dataset) get grouped together, one entry per
+// unique label, each carrying the full list of source datasets.
+function groupVariablesByLabel(vars) {
+  const grouped = {};
+  vars.forEach(v => {
+    const rawLabel = (v.display_name === "All genera and species")
+      ? "Zooplankton (All Genera & Species)"
+      : v.display_name;
+    const baseLabel = fixDisplayName(rawLabel);
+    if (!grouped[baseLabel]) grouped[baseLabel] = [];
+    grouped[baseLabel].push({ v, rawLabel });
+  });
+  return Object.values(grouped);
+}
+
 function renderDropdown(searchTerm = "") {
   const vars = window.allVariables || [];
-
-  if (!Array.isArray(vars)) {
-    console.error("renderDropdown expected array:", vars);
-    return;
-  }
-
   const list = document.getElementById("dropdown");
+  if (!list) return;
 
-  if (!list) {
-    console.error("Dropdown element not found (#dropdown)");
-    return;
-  }
-
-  const filtered = vars.filter(v => {
-    const text = (
-      (v.display_name || "") +
-      " " +
-      (v.keywords || []).join(" ")
-    ).toLowerCase();
-
-    return text.includes(searchTerm.toLowerCase());
-  });
-
-
-  const results =
-    searchTerm
-      ? filtered
-      : vars.slice(0, 100);
+  const filtered = searchTerm
+    ? vars.filter(v => {
+        if (isExcludedFromBrowse(v)) return false;
+        // Search against both original name AND fixed display name (includes common names)
+        const fixedName = fixDisplayName(v.display_name || "");
+        const text = (
+          (v.display_name || "") + " " +
+          fixedName + " " +
+          (v.keywords || []).join(" ")
+        ).toLowerCase();
+        return text.includes(searchTerm.toLowerCase());
+      })
+    : vars.filter(v => v.station_based && !isExcludedFromBrowse(v)).slice(0, 100);
 
   list.classList.add("open");
 
-
-  if (results.length === 0) {
-    list.innerHTML = `
-    <div class="dropdown-empty">
-      No variables found
-    </div>
-  `;
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="dropdown-empty">No variables found</div>`;
     return;
   }
 
-  list.innerHTML = results.map(v => `
-<div class="dropdown-item"
-       data-id="${v.variable_id}">
+  // Group by the exact rendered label — see groupVariablesByLabel() above.
+  const VAGUE_LABELS = new Set(["species", "count", "type", "behavior", "common_name", "scientific_name"]);
+  const groups = groupVariablesByLabel(filtered.slice(0, 200));
 
-    <div class="dropdown-name">
+  list.innerHTML = groups.map(entries => {
+    const { v, rawLabel } = entries[0];
+    const baseLabel = fixDisplayName(rawLabel);
+    const datasetPrefix = VAGUE_LABELS.has(rawLabel.toLowerCase()) && v.dataset_name
+      ? v.dataset_name.replace("CalCOFI Farallon Institute ", "").replace("CalCOFI NOAA ", "") + " — "
+      : "";
+    const label = datasetPrefix + baseLabel;
 
-      ${v.display_name}
+    // combine dataset names across every entry that shares this exact label
+    const datasetNames = [...new Set(entries.map(e => e.v.dataset_name || e.v.provider || e.v.dataset_id))];
+    const anyUnderway = entries.some(e => !e.v.station_based);
 
-      <span style="
-        color: var(--muted);
-        margin-left: 6px;
-        font-size: 10px;
-      ">
-
-        | ${v.dataset_name || v.provider || v.dataset_id} | Station based: ${v.station_based}
-
-      </span>
-
-    </div>
-    </div>
-  `).join("");
+    return `
+      <div class="dropdown-item" data-id="${v.variable_id}">
+        <div class="dropdown-name">
+          ${label}
+          <span style="color:var(--muted);margin-left:6px;font-size:10px;">
+            | ${datasetNames.join("; ")}
+            ${anyUnderway ? " | Underway/Transect" : ""}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
-// dropdown actions
 function updateDropdownFocus(items) {
   items.forEach((el, i) => el.classList.toggle('focused', i === dropdownFocusIdx));
   if (items[dropdownFocusIdx]) items[dropdownFocusIdx].scrollIntoView({ block: 'nearest' });
 }
 
-function openDropdown() {
-  dropdown.classList.add('open');
-}
-
+function openDropdown() { dropdown.classList.add('open'); }
 function closeDropdown() {
-  console.log("closing dropdown");
   dropdown.classList.remove('open');
   dropdownFocusIdx = -1;
+  window.browseGroupActive = null;
 }
-// ---
 
-//dropdown functionality
 document.getElementById("dropdown").addEventListener("mousedown", (e) => {
   const item = e.target.closest(".dropdown-item");
   if (!item) return;
-
   const id = item.dataset.id;
-
-  const selected = (window.allVariables || [])
-    .find(v => v.variable_id === id);
-
+  const selected = (window.allVariables || []).find(v => v.variable_id === id);
   if (selected) {
     selectVariable(selected.variable_id);
     closeDropdown();
   }
 });
 
-// creating default marker style
+// marker styles
 function styleDefaultStation(marker) {
-
-  marker.setStyle({
-
-    radius: 10,
-
-    fillColor: "#00c2ff",
-
-    color: "#0d7aad",
-
-    weight: 2,
-
-    fillOpacity: 0.7,
-  });
+  marker.setStyle({ radius: 10, fillColor: "#00c2ff", color: "#0d7aad", weight: 2, fillOpacity: 0.7 });
 }
 
-
-// darken station color on click
 function darkenColor(hex, factor = 0.65) {
-
   if (!hex) return hex;
-
   hex = hex.replace("#", "");
-
-  const r = parseInt(
-    hex.substring(0, 2),
-    16
-  );
-
-  const g = parseInt(
-    hex.substring(2, 4),
-    16
-  );
-
-  const b = parseInt(
-    hex.substring(4, 6),
-    16
-  );
-
-  const darkened = [
-
-    Math.floor(r * factor),
-
-    Math.floor(g * factor),
-
-    Math.floor(b * factor * factor)
-
-  ];
-
-  return (
-    "#" +
-    darkened
-      .map(v =>
-        v
-          .toString(16)
-          .padStart(2, "0")
-      )
-      .join("")
-  );
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const darkened = [Math.floor(r * factor), Math.floor(g * factor), Math.floor(b * factor * factor)];
+  return "#" + darkened.map(v => v.toString(16).padStart(2, "0")).join("");
 }
 
-// parameterizing station marker colors, for ease of editing styles
 function applySelectedStyle(marker) {
-
-  const currentStyle =
-    marker.options;
-
+  const currentStyle = marker.options;
   marker._previousStyle = {
-
-    fillColor:
-      currentStyle.fillColor,
-
-    color:
-      currentStyle.color,
-
-    radius:
-      currentStyle.radius,
-
-    weight:
-      currentStyle.weight,
-
-    fillOpacity:
-      currentStyle.fillOpacity
+    fillColor: currentStyle.fillColor,
+    color: currentStyle.color,
+    radius: currentStyle.radius,
+    weight: currentStyle.weight,
+    fillOpacity: currentStyle.fillOpacity
   };
-
   marker.setStyle({
-
-    fillColor: darkenColor(
-      currentStyle.fillColor
-    ),
-
-    color: darkenColor(
-      currentStyle.color || "#ffffff"
-    ),
-
-    radius:
-      (currentStyle.radius || 6) + 1,
-
-    weight:
-      (currentStyle.weight || 1.5) + 1
+    fillColor: darkenColor(currentStyle.fillColor),
+    color: darkenColor(currentStyle.color || "#ffffff"),
+    radius: (currentStyle.radius || 6) + 1,
+    weight: (currentStyle.weight || 1.5) + 1
   });
 }
 
 function restoreMarkerStyle(marker) {
-
-  if (!marker?._previousStyle)
-    return;
-
-  marker.setStyle(
-    marker._previousStyle
-  );
-
+  if (!marker?._previousStyle) return;
+  marker.setStyle(marker._previousStyle);
   delete marker._previousStyle;
 }
 
-// handle selecting variable
 function selectVariable(variableId) {
-
-  const v =
-    window.allVariables.find(
-      v => v.variable_id === variableId
-    );
-
+  const v = window.allVariables.find(v => v.variable_id === variableId);
   if (!v) return;
 
   selectedVariable = v;
-
-
-  searchInput.value =
-    v.display_name || "";
-
+  searchInput.value = fixDisplayName(v.display_name || "");
   closeDropdown();
 
+  // hide browse panel when a variable is selected
+  const browsePanel = document.getElementById('browse-panel');
+  if (browsePanel) browsePanel.style.display = 'none';
+
   highlightStations(v);
+  document.getElementById('clear-btn').classList.add('visible');
+  renderYearSlider(v);
 
-  document.getElementById(
-    'clear-btn'
-  ).classList.add('visible');
+  const banner = document.getElementById('search-banner');
+  // When per-station year data exists, it's the authoritative record of
+  // which stations actually have confirmed data for this variable (see
+  // highlightStations) -- station_ids alone may be a broader nominal grid.
+  const isUnconfirmedTaxon = isUnconfirmedZooDBTaxon(v);
+  const hasRealStationData =
+    v.station_years && Object.keys(v.station_years).length > 0;
+  const stationCount = isUnconfirmedTaxon
+    ? 0
+    : hasRealStationData
+    ? Object.keys(v.station_years).length
+    : (v.station_ids?.length || 0);
 
-  const banner =
-    document.getElementById(
-      'search-banner'
-    );
-
-  console.log(
-    v.display_name,
-    v.station_group,
-    v.station_ids?.length,
-    v.station_ids
-  );
-
-  banner.textContent =
-    `${v.station_ids?.length || 0} stations contain ${v.display_name}`;
-
-  banner.classList.add('visible');
-
-  const isStationBased =
-    Array.isArray(v.station_ids) &&
-    v.station_ids.length > 0;
-
-  if (!isStationBased) {
-
+  if (isUnconfirmedTaxon) {
+    banner.textContent =
+      `No confirmed station-level records yet for "${fixDisplayName(v.display_name)}" -- awaiting a species-level data export`;
+    banner.classList.add('visible');
     openVariableModal(v);
-
     return;
   }
 
-  highlightStations(v);
+  if (!v.station_based || stationCount === 0) {
+    // non-station-based: show modal directly, no map highlight
+    banner.textContent = `"${v.display_name}" is not collected at fixed stations`;
+    banner.classList.add('visible');
+    openVariableModal(v);
+    return;
+  }
 
-  document.getElementById(
-    'clear-btn'
-  ).classList.add('visible');
-
-
-  banner.textContent =
-    `${v.station_ids?.length || 0} stations contain ${v.display_name}`;
-
+  banner.textContent = `${stationCount} station${stationCount === 1 ? '' : 's'} collect ${fixDisplayName(v.display_name)}`;
   banner.classList.add('visible');
 
   renderVariableSelectionPanel(v);
 }
 
-// creates side panel with variables
+// Shared by both variable-detail views (station-based panel and the modal):
+// shows real observed-year range and, when notable, which specific years
+// within the survey window had zero records for this species.
+function yearRangeHtml(v) {
+  if (!v.first_year) return "";
+  const totalYears = v.n_years_surveyed || null;
+  const observedYears = v.n_years_observed || (v.years_observed ? v.years_observed.length : null);
+  const summary = totalYears
+    ? `Observed in ${observedYears} of ${totalYears} surveyed years (${v.first_year}-${v.last_year})`
+    : `Observed ${v.first_year}-${v.last_year}`;
+  const missing = v.years_not_observed || [];
+  const gapNote = (missing.length > 0 && missing.length <= 6)
+    ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Not recorded in: ${missing.join(", ")}</div>`
+    : "";
+  return `<div style="color:var(--muted);font-size:10px;margin-top:2px;">${summary}</div>${gapNote}`;
+}
+
 function renderVariableSelectionPanel(v) {
-
-  const content =
-    document.getElementById(
-      'panel-content'
-    );
-
-  document.getElementById(
-    'panel-empty'
-  ).style.display = 'none';
-
-  document.getElementById(
-    'panel-header'
-  ).style.display = 'block';
-
-  document.getElementById(
-    'panel-station-id'
-  ).textContent =
-    v.display_name;
-
-  document.getElementById(
-    'panel-coords'
-  ).textContent =
-    'Select a highlighted station';
-
+  const content = document.getElementById('panel-content');
+  document.getElementById('panel-empty').style.display = 'none';
+  document.getElementById('panel-header').style.display = 'block';
+  document.getElementById('panel-station-id').textContent = fixDisplayName(v.display_name);
+  document.getElementById('panel-coords').textContent = 'Select a highlighted station';
   content.classList.add('visible');
 
-  content.innerHTML = `
-
-    <div style="
-      color:var(--muted);
-      font-size:11px;
-      line-height:1.8;
-    ">
-    <b>Dataset:</b> ${v.dataset_name || ''}
-
-    <br><br>
-
-      <b>Variable description:</b> ${v.description || ''
+  // Single header back-button: point it at the station if we came from
+  // one, otherwise back to the category list. No second button in content.
+  const backBtn = document.getElementById('panel-back-inventory');
+  if (backBtn) {
+    if (window.currentStation) {
+      backBtn.textContent = `← Back to Station ${window.currentStation.station_id}`;
+      backBtn.onclick = () => openStation(window.currentStation);
+    } else {
+      backBtn.textContent = '← All Categories';
+      backBtn.onclick = () => resetPanelUI();
     }
+    backBtn.style.display = 'block';
+  }
 
-      <br><br>
+  const countLine = (typeof v.sighting_count === "number")
+    ? `<span class="panel-highlight"><b>${v.sighting_count.toLocaleString()}</b> sightings recorded</span><br>
+       ${yearRangeHtml(v)}<br>`
+    : (typeof v.tow_occurrence_count === "number")
+    ? `<span class="panel-highlight">Present in <b>${v.tow_occurrence_count.toLocaleString()}</b> of ${v.total_tows_surveyed.toLocaleString()} tows</span><br>
+       ${typeof v.mean_abundance_when_present === "number"
+         ? `<span class="panel-subtext">Mean density when present: ${v.mean_abundance_when_present.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; Brinton &amp; Townsend Euphausiid Database</span><br>`
+         : ""}
+       ${typeof v.mean_abundance === "number"
+         ? `<span class="panel-subtext">Mean community abundance: ${v.mean_abundance.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; CalCOFI ZooDB</span><br>`
+         : ""}
+       ${v.data_note ? `<span class="panel-subtext panel-subtext-muted">${v.data_note}</span><br>` : ""}
+       ${yearRangeHtml(v)}
+       ${v.taxonomy_note ? `<span class="panel-subtext">${v.taxonomy_note}</span><br>` : ""}
+       <br>`
+    : "";
 
-      <span style="color:var(--accent)">
-        ${v.station_ids?.length || 0}
-        stations available
+  const stationCount = (v.station_years && Object.keys(v.station_years).length > 0)
+    ? Object.keys(v.station_years).length
+    : (v.station_ids?.length || 0);
+
+  content.innerHTML = `
+    <div class="panel-info-block">
+      <b>Dataset:</b> ${v.dataset_name || ''}<br><br>
+      <b>Description:</b> ${v.description || 'No description available.'}<br><br>
+      ${v.units ? `<b>Units:</b> ${v.units}<br><br>` : ''}
+      ${countLine}
+      <span class="panel-station-count">
+        Collected at ${stationCount} station${stationCount === 1 ? '' : 's'}
       </span>
-
+      <span class="panel-hint">
+        Click a highlighted station on the map to open the data portal
+      </span>
+      <a href="${getDatasetUrl(v)}" target="_blank" rel="noopener noreferrer" class="panel-open-dataset-btn">
+        Open Dataset ↗
+      </a>
     </div>
-
   `;
 }
 
-// after clear, returns side panel to default
 function resetPanelUI() {
   const header = document.getElementById('panel-header');
   if (header) header.style.display = 'none';
-
   document.getElementById('panel-station-id').textContent = '';
   document.getElementById('panel-coords').textContent = '';
-
   const content = document.getElementById('panel-content');
-  if (content) {
-    content.classList.remove('visible');
-    content.innerHTML = '';
-  }
-
+  if (content) { content.classList.remove('visible'); content.innerHTML = ''; }
   const empty = document.getElementById('panel-empty');
   if (empty) {
     empty.style.display = 'flex';
+    renderInventoryPanel(); // restore inventory when panel resets
   }
-
   selectedVariable = null;
   window.currentStation = null;
-
   document.getElementById('clear-btn')?.classList.remove('visible');
-
   const banner = document.getElementById('search-banner');
-  if (banner) {
-    banner.classList.remove('visible');
-    banner.textContent = '';
-  }
+  if (banner) { banner.classList.remove('visible'); banner.textContent = ''; }
 }
 
-// highlight stations after variable selection
-function highlightStations(variable) {
+function renderYearSlider(v) {
+  const container = document.getElementById('year-slider');
+  if (!container) return;
 
-  clearHighlights();
-
-  if (!Array.isArray(variable?.station_ids)) {
+  // Only station-based variables with real per-station year data can be
+  // filtered on the map -- everything else (marine mammals, seabirds) has
+  // no discrete station markers to filter, so hide the slider for those.
+  if (!v.station_years || !v.first_year || !v.last_year) {
+    container.style.display = 'none';
+    container.innerHTML = '';
     return;
   }
 
-  variable.station_ids.forEach(stationId => {
+  const min = parseInt(v.first_year, 10);
+  const max = parseInt(v.last_year, 10);
 
-const station =
-  window.stationIdMap[
-    stationId
-  ];
+  container.style.display = 'flex';
+  container.innerHTML = `
+    <div class="year-slider-row">
+      <span class="year-slider-label" id="year-slider-start-label">${min}</span>
+      <div class="year-range-track">
+        <div class="year-range-bg"></div>
+        <div class="year-range-fill" id="year-range-fill"></div>
+        <input type="range" id="year-slider-start" min="${min}" max="${max}" value="${min}" step="1">
+        <input type="range" id="year-slider-end" min="${min}" max="${max}" value="${max}" step="1">
+      </div>
+      <span class="year-slider-label" id="year-slider-end-label">${max}</span>
+      <button class="year-slider-reset" id="year-slider-reset" title="Reset to full range">Reset</button>
+    </div>
+  `;
+
+  const startInput = document.getElementById('year-slider-start');
+  const endInput = document.getElementById('year-slider-end');
+  const startLabel = document.getElementById('year-slider-start-label');
+  const endLabel = document.getElementById('year-slider-end-label');
+  const fill = document.getElementById('year-range-fill');
+  const resetBtn = document.getElementById('year-slider-reset');
+
+  // Two overlapping range inputs share one visible track. Each keeps its
+  // own value; we just clamp so the handle being dragged can't cross the
+  // other one, and redraw the highlighted segment between them.
+  function updateFill(s, e) {
+    const pctS = ((s - min) / (max - min)) * 100;
+    const pctE = ((e - min) / (max - min)) * 100;
+    fill.style.left = pctS + '%';
+    fill.style.width = (pctE - pctS) + '%';
+    startLabel.textContent = s;
+    endLabel.textContent = e;
+  }
+
+  function applyFilter(movedStart) {
+    let s = parseInt(startInput.value, 10);
+    let e = parseInt(endInput.value, 10);
+    if (s > e) {
+      if (movedStart) { s = e; startInput.value = s; }
+      else { e = s; endInput.value = e; }
+    }
+    updateFill(s, e);
+    highlightStations(v, [s, e]);
+    updateBanner(s, e);
+  }
+
+  // Keep the banner text in sync with the slider -- it used to say e.g.
+  // "91 stations collect Salinity" no matter where the handles were,
+  // which was misleading once the map was actually showing a filtered
+  // subset. Count mirrors highlightStations' own year-overlap logic so
+  // the number always matches what's really highlighted.
+  const banner = document.getElementById('search-banner');
+  const fullCount = Object.keys(v.station_years).length;
+  function updateBanner(s, e) {
+    if (!banner) return;
+    const name = fixDisplayName(v.display_name);
+    if (s === min && e === max) {
+      banner.textContent = `${fullCount} station${fullCount === 1 ? '' : 's'} collect ${name}`;
+      return;
+    }
+    const count = Object.values(v.station_years).filter(years =>
+      years.some(y => { const yr = parseInt(y, 10); return yr >= s && yr <= e; })
+    ).length;
+    banner.textContent = `${count} station${count === 1 ? '' : 's'} collect ${name} between ${s}-${e}`;
+  }
+
+  // Whichever handle was last grabbed gets a higher z-index so it stays on
+  // top when the two thumbs are near each other and both are clickable.
+  startInput.addEventListener('pointerdown', () => {
+    startInput.style.zIndex = 3;
+    endInput.style.zIndex = 2;
+  });
+  endInput.addEventListener('pointerdown', () => {
+    endInput.style.zIndex = 3;
+    startInput.style.zIndex = 2;
+  });
+
+  startInput.addEventListener('input', () => applyFilter(true));
+  endInput.addEventListener('input', () => applyFilter(false));
+
+  updateFill(min, max);
+
+  resetBtn.addEventListener('click', () => {
+    startInput.value = min;
+    endInput.value = max;
+    applyFilter(true);
+  });
+}
+
+// The 75 individual ZooDB species entries share one identical, generic
+// 115-station placeholder list (assigned as a blanket "spatial
+// approximation" in build_vars.py) with zero confirmed signal behind any
+// of them -- unlike euphausiid species, which have real per-station data
+// in a separate decade-means file (loaded lazily in the modal) even though
+// it isn't merged into station_years here. Scope this narrowly to ZooDB so
+// we don't suppress euphausiid highlighting, which is backed by real data
+// this heuristic just can't see on the variable object itself.
+function taxonHasConfirmedData(v) {
+  if (v.station_years && Object.keys(v.station_years).length > 0) return true;
+  if (typeof v.tow_occurrence_count === 'number') return true;
+  if (typeof v.sighting_count === 'number') return true;
+  if (typeof v.mean_abundance === 'number') return true;
+  return false;
+}
+
+function isUnconfirmedZooDBTaxon(v) {
+  return v.dataset_id === 'zoodb' &&
+    v.entity_type === 'taxon' &&
+    !taxonHasConfirmedData(v);
+}
+
+function highlightStations(variable, yearRange) {
+  clearHighlights();
+  if (!Array.isArray(variable?.station_ids)) return;
+
+  if (isUnconfirmedZooDBTaxon(variable)) {
+    // Placeholder grid, not real data -- don't imply confirmed records.
+    return;
+  }
+
+  // station_ids may list a variable's full nominal/historical station grid
+  // for context even when only a subset of those stations have confirmed
+  // per-station records (station_years). When station_years is present,
+  // treat it as authoritative and only highlight stations it backs --
+  // regardless of whether a year-range filter is active.
+  const hasRealStationData =
+    variable.station_years && Object.keys(variable.station_years).length > 0;
+
+  variable.station_ids.forEach(stationId => {
+    if (hasRealStationData) {
+      const years = variable.station_years[stationId];
+      if (!years || years.length === 0) return;
+
+      if (yearRange) {
+        const inRange = years.some(y => {
+          const yr = parseInt(y, 10);
+          return yr >= yearRange[0] && yr <= yearRange[1];
+        });
+        if (!inRange) return;
+      }
+    }
+
+    const station =
+      window.stationIdMap?.[stationId] ||
+      window.stationMap?.[normalizeStationId(stationId)];
 
     if (!station?.marker) {
-
-      console.warn(
-        "Missing station:",
-        stationId
-      );
-
+      console.warn("Missing station:", stationId);
       return;
     }
 
@@ -1182,349 +1439,425 @@ const station =
       fillOpacity: 0.95,
       opacity: 1
     });
-
     station.marker.bringToFront?.();
   });
 }
 
 function clearHighlights() {
-
-  console.log("clearHighlights called");
-
-  let count = 0;
-
-  Object.values(window.stationMap || {})
-    .forEach(station => {
-
-      if (!station?.marker) return;
-
-      count++;
-
-      station.marker.setStyle({
-        radius: 10,
-        color: "#00c2ff",
-        fillColor: "#00c2ff",
-        weight: 1,
-        fillOpacity: 0.7,
-        opacity: 1
-      });
+  Object.values(window.stationMap || {}).forEach(station => {
+    if (!station?.marker) return;
+    station.marker.setStyle({
+      radius: 10, color: "#00c2ff", fillColor: "#00c2ff",
+      weight: 1, fillOpacity: 0.7, opacity: 1
     });
-
-  console.log(
-    "markers reset:",
-    count
-  );
+  });
 }
 
 function handleVariableClick(variableId) {
   const variable = window.variableMap?.[variableId];
   if (!variable) return;
-
   selectVariable(variableId);
-
   requestAnimationFrame(() => {
-    if (window.currentStation) {
-      openVariableModal(variable);
-    }
+    if (window.currentStation) openVariableModal(variable);
   });
 }
 
 function clearAll() {
   selectedVariable = null;
   activeCategory = null;
+  window.browseGroupActive = null;
   searchInput.value = '';
   closeDropdown();
   clearHighlights();
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('clear-btn').classList.remove('visible');
   document.getElementById('search-banner').classList.remove('visible');
+  const yearSlider = document.getElementById('year-slider');
+  if (yearSlider) { yearSlider.style.display = 'none'; yearSlider.innerHTML = ''; }
   resetPanelUI();
+
+  // restore browse panel
+  const browsePanel = document.getElementById('browse-panel');
+  if (browsePanel) browsePanel.style.display = 'block';
 }
 
+// Title-case: capitalize every word (used for category labels)
+function toTitleCase(str) {
+  return (str || "").replace(/\b\w/g, c => c.toUpperCase());
+}
 
+// Fix known display name issues from ERDDAP metadata
+// Fix underscores in field names (e.g. common_name → Common Name)
+// Applied in fixDisplayName before other fixes
+function cleanFieldName(name) {
+  if (!name) return name;
+  if (name.includes("_")) {
+    return name.replace(/_/g, " ");
+  }
+  return name;
+}
 
-function openVariableModal(v) {
+const DISPLAY_NAME_FIXES = {
+  // Truncations from ERDDAP long_name field
+  "Phaeopigment Concentratio":              "Phaeopigment Concentration",
+  "Phaeopigment concentratio":              "Phaeopigment Concentration",
 
-  console.log(
-    "Opening variable modal:",
-    v
-  );
+  // pH — preserve lowercase h
+  "ph":                                     "pH",
+  "Ph":                                     "pH",
+  "PH":                                     "pH",
+  "ph replicate":                           "pH Replicate",
+  "pH replicate":                           "pH Replicate",
 
-  const backdrop =
-    document.getElementById(
-      "modal-backdrop"
-    );
+  // Coordinate metadata fields (filtered from browse but fix if shown)
+  "latitude_degrees":                       "Latitude Degrees",
+  "latitude_hemisphere":                    "Latitude Hemisphere",
+  "latitude_minutes":                       "Latitude Minutes",
+  "longitude_degrees":                      "Longitude Degrees",
+  "longitude_hemisphere":                   "Longitude Hemisphere",
+  "longitude_minutes":                      "Longitude Minutes",
 
-  const modal =
-    document.getElementById(
-      "modal"
-    );
+  // Platform labels
+  "erddap":                                 "ERDDAP",
+  "oceaninformatics":                       "Ocean Informatics",
+  "ucsd":                                   "UCSD",
 
-  const title =
-    document.getElementById(
-      "modal-title"
-    );
+  // ZooDB species common names (only well-established English names)
+  "calanus pacificus":          "Calanus pacificus (California Copepod)",
+  "neocalanus cristatus":       "Neocalanus cristatus (Crystalline Copepod)",
+  "neocalanus flemingeri":      "Neocalanus flemingeri (Fleming's Copepod)",
+  "neocalanus gracilis":        "Neocalanus gracilis (Graceful Copepod)",
+  "neocalanus plumchrus":       "Neocalanus plumchrus (Subarctic Copepod)",
+  "pleuroncodes planipes":      "Pleuroncodes planipes (Pelagic Red Crab)",
+  "pyrosoma atlanticum":        "Pyrosoma atlanticum (Atlantic Pyrosome)",
+  "thalia democratica":         "Thalia democratica (Democratic Salp)",
+  "salpa fusiformis":           "Salpa fusiformis (Fusiform Salp)",
+  "salpa maxima":               "Salpa maxima (Giant Salp)",
+  "salpa aspera":               "Salpa aspera (Rough Salp)",
+  "sergestes similis":          "Sergestes similis (Similar Sergestid Shrimp)",
+  "pasiphaea pacifica":         "Pasiphaea pacifica (Pacific Glass Shrimp)",
+  "pasiphaea spp.":             "Pasiphaea spp. (Glass Shrimp)",
+  "dolioletta gegenbauri":      "Dolioletta gegenbauri (Gegenbauer's Doliolid)",
+  "pegea confoederata":         "Pegea confoederata (Colonial Salp)",
+  "weelia cylindrica":          "Weelia cylindrica (Cylindrical Salp)",
+  "thetys vagina":              "Thetys vagina (Giant Salp)",
+  "tomopteris spp.":            "Tomopteris spp. (Polychaete Worm)",
+  "atlanta spp.":               "Atlanta spp. (Sea Butterfly Heteropod)",
 
-  const body =
-    document.getElementById(
-      "modal-body"
-    );
+  // Euphausiid common names
+  "Bentheuphausia amblyops":    "Bentheuphausia amblyops (Deep-sea Krill)",
+  "Euphausia brevis":           "Euphausia brevis (Short Krill)",
+  "Euphausia diomedeae":        "Euphausia diomedeae (Diomedea Krill)",
+  "Euphausia distinguenda":     "Euphausia distinguenda (Distinctive Krill)",
+  "Euphausia eximia":           "Euphausia eximia (Exquisite Krill)",
+  "Euphausia gibboides":        "Euphausia gibboides (Humpback Krill)",
+  "Euphausia hemigibba":        "Euphausia hemigibba (Half-hump Krill)",
+  "Euphausia lamelligera":      "Euphausia lamelligera (Lamellar Krill)",
+  "Euphausia mutica":           "Euphausia mutica (Mute Krill)",
+  "Euphausia pacifica":         "Euphausia pacifica (Pacific Krill)",
+  "Euphausia recurva":          "Euphausia recurva (Curved Krill)",
+  "Euphausia tenera":           "Euphausia tenera (Tender Krill)",
+  "Hansarsia atlantica":        "Hansarsia atlantica (Atlantic Krill)",
+  "Hansarsia difficilis":       "Hansarsia difficilis (Difficult Krill)",
+  "Hansarsia gracilis":         "Hansarsia gracilis (Slender Krill)",
+  "Hansarsia microps":          "Hansarsia microps (Small-eye Krill)",
+  "Hansarsia tenella":          "Hansarsia tenella (Delicate Krill)",
+  "Nematobrachion boopis":      "Nematobrachion boopis (Boops Krill)",
+  "Nematobrachion flexipes":    "Nematobrachion flexipes (Flexible Krill)",
+  "Nyctiphanes simplex":        "Nyctiphanes simplex (Simple Krill)",
+  "Stylocheiron abbreviatum":   "Stylocheiron abbreviatum (Abbreviated Krill)",
+  "Stylocheiron affine":        "Stylocheiron affine (Affine Krill)",
+  "Stylocheiron carinatum":     "Stylocheiron carinatum (Keeled Krill)",
+  "Stylocheiron elongatum":     "Stylocheiron elongatum (Elongated Krill)",
+  "Stylocheiron longicorne":    "Stylocheiron longicorne (Long-horned Krill)",
+  "Stylocheiron maximum":       "Stylocheiron maximum (Large Krill)",
+  "Stylocheiron suhmi":         "Stylocheiron suhmi (Suhm's Krill)",
+  "Tessarabrachion oculatum":   "Tessarabrachion oculatum (Four-arm Krill)",
+  "Thysanoessa gregaria":       "Thysanoessa gregaria (Gregarious Krill)",
+  "Thysanoessa longipes":       "Thysanoessa longipes (Long-legged Krill)",
+  "Thysanoessa spinifera":      "Thysanoessa spinifera (Spiny Krill)",
+  "Thysanopoda astylata":       "Thysanopoda astylata (Styleless Krill)",
+  "Thysanopoda cornuta":        "Thysanopoda cornuta (Horned Krill)",
+  "Thysanopoda cristata":       "Thysanopoda cristata (Crested Krill)",
+  "Thysanopoda egregia":        "Thysanopoda egregia (Distinguished Krill)",
+  "Thysanopoda monacantha":     "Thysanopoda monacantha (Single-spine Krill)",
+  "Thysanopoda obtusifrons":    "Thysanopoda obtusifrons (Blunt-fronted Krill)",
+  "Thysanopoda orientalis":     "Thysanopoda orientalis (Oriental Krill)",
+  "Thysanopoda pectinata":      "Thysanopoda pectinata (Combed Krill)",
 
-  const footer =
-    document.getElementById(
-      "modal-footer"
-    );
+  // Specific ERDDAP name fixes
+  "C14 Assimilation of the Experimental Control (dark Bottle)":
+    "C14 Assimilation of the Experimental Control (Dark Bottle)",
+  "C14 Assimilation of the experimental control (dark bottle)":
+    "C14 Assimilation of the Experimental Control (Dark Bottle)",
+  "ForelU":          "Forel-Ule Color Code",
+  "Forel_Ule":       "Forel-Ule Color Code",
+  "forelU":          "Forel-Ule Color Code",
+  "O2Sat":           "Oxygen Saturation",
+  "O2sat":           "Oxygen Saturation",
+  "O2":              "Oxygen (mL/L)",
+  "Secchi":          "Secchi Depth",
+  "secchi":          "Secchi Depth",
+  "Mesh Size ()":    "Mesh Size",
+  "mesh size ()":    "Mesh Size",
+};
 
-  const warning =
-    document.getElementById(
-      "external-warning"
-    );
+function fixDisplayName(name) {
+  if (!name) return name;
+  // Fix underscores first
+  let cleaned = cleanFieldName(name);
+  // Strip a trailing "Replicate N" / ", Replicate N" so both replicates
+  // of the same measurement (e.g. "Total Alkalinity, Replicate 1" and
+  // "...Replicate 2") render to the same label and merge into one row,
+  // instead of showing as two separate near-duplicate parameters.
+  cleaned = cleaned.replace(/,?\s*replicate\s*\d+\s*$/i, "").trim();
+  // Clean up a dangling trailing "of" left behind (e.g. "...Assimilation
+  // Of Replicate 1" -> "...Assimilation Of" -> "...Assimilation")
+  cleaned = cleaned.replace(/\s+of\s*$/i, "").trim();
+  // Check exact match fixes
+  if (DISPLAY_NAME_FIXES[cleaned]) return DISPLAY_NAME_FIXES[cleaned];
+  if (DISPLAY_NAME_FIXES[cleaned.toLowerCase()]) return DISPLAY_NAME_FIXES[cleaned.toLowerCase()];
+  // Apply title case
+  return toTitleCase(cleaned);
+}
 
-  if (
-    !backdrop ||
-    !modal ||
-    !title ||
-    !body ||
-    !footer
-  ) {
+// Renders a taxon-grouped (Birds / Mammals / Other), count-sorted species
+// breakdown for the generic "Species" fields. Returns "" if no data.
+function renderSpeciesBreakdown(speciesList) {
+  if (!speciesList || !speciesList.length) return "";
 
-    console.error(
-      "Modal elements missing"
-    );
+  const confirmed = speciesList.filter(s => s.confirmed !== false);
+  const unconfirmed = speciesList.filter(s => s.confirmed === false);
 
+  const taxonOrder = ["bird", "mammal", "fish", "reptile"];
+  const taxonLabel = { bird: "Birds", mammal: "Mammals", fish: "Fish", reptile: "Reptiles" };
+
+  const groups = {};
+  confirmed.forEach(s => {
+    const t = s.taxon_type || "other";
+    if (!groups[t]) groups[t] = [];
+    groups[t].push(s);
+  });
+
+  const sections = taxonOrder
+    .filter(t => groups[t]?.length)
+    .map(t => {
+      const rows = groups[t]
+        .map(s => `
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.06));">
+            <span>${s.common_name}</span>
+            <span style="color:var(--muted);white-space:nowrap;margin-left:8px;">${s.count.toLocaleString()} sighted</span>
+          </div>`)
+        .join("");
+      return `
+        <div style="margin-top:10px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:2px;">
+            ${taxonLabel[t] || t} (${groups[t].length})
+          </div>
+          ${rows}
+        </div>`;
+    }).join("");
+
+  const unconfirmedSection = unconfirmed.length
+    ? `<div style="margin-top:10px;font-size:10px;color:var(--muted);">
+         <em>Unconfirmed codes (not yet matched to a species dictionary):</em>
+         ${unconfirmed.map(s => `${s.common_name} (${s.count.toLocaleString()})`).join(", ")}
+       </div>`
+    : "";
+
+  return `
+    <div style="margin-top:10px;max-height:260px;overflow-y:auto;font-size:12px;">
+      ${sections}
+      ${unconfirmedSection}
+    </div>`;
+}
+
+// Lazy-loaded, cached per-dataset -- only fetched the first time it's
+// actually needed, not on initial app load, since these files can be
+// several hundred KB (one row per station per decade per species).
+window._stationTimeSeriesCache = window._stationTimeSeriesCache || {};
+async function loadStationTimeSeries(key, path) {
+  if (window._stationTimeSeriesCache[key]) return window._stationTimeSeriesCache[key];
+  try {
+    const res = await fetch(path);
+    const data = await res.json();
+    window._stationTimeSeriesCache[key] = data;
+    return data;
+  } catch (err) {
+    console.warn(`${path} not available:`, err);
+    window._stationTimeSeriesCache[key] = {};
+    return {};
+  }
+}
+
+function renderDecadeBreakdownHtml(stationData) {
+  if (!stationData) return "";
+  const bins = Object.keys(stationData).sort();
+  if (!bins.length) return "";
+  const rows = bins.map(b => {
+    const d = stationData[b];
+    return `<div style="display:flex;justify-content:space-between;font-size:10px;padding:2px 0;">
+      <span>${b}</span>
+      <span style="color:var(--muted);">${d.mean_density.toLocaleString()} per m² (${d.n_tows} tows)</span>
+    </div>`;
+  }).join("");
+  return `
+    <div style="margin-top:10px;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:2px;">
+        Mean density by decade at this station
+      </div>
+      ${rows}
+    </div>`;
+}
+
+async function openVariableModal(v) {
+  const backdrop = document.getElementById("modal-backdrop");
+  const modal = document.getElementById("modal");
+  const title = document.getElementById("modal-title");
+  const body = document.getElementById("modal-body");
+  const footer = document.getElementById("modal-footer");
+  const warning = document.getElementById("external-warning");
+
+  if (!backdrop || !modal || !title || !body || !footer) {
+    console.error("Modal elements missing");
     return;
   }
 
-  modal.onclick = (e) => {
-    e.stopPropagation();
-  };
+  modal.onclick = (e) => e.stopPropagation();
+  // The ZooDB "All genera and species" aggregate entry's taxonomy field is
+  // parser junk, not a real species -- use a generic label instead.
+  const rawTitle = (v.display_name === "All genera and species")
+    ? "Zooplankton (All Genera & Species)"
+    : (v.display_name || v.variable_name || "Dataset");
+  title.textContent = toTitleCase(rawTitle);
 
-  title.textContent =
-    v.display_name ||
-    v.variable_name ||
-    "Dataset";
+  // format platform name
+  const platformLabel = (v.platform || "")
+    .replace("erddap", "ERDDAP")
+    .replace("oceaninformatics", "Ocean Informatics");
+
+  // Single-species sample count (e.g. individual marine mammal species
+  // variables like marine_mammal_sightings_underway::blue_whale)
+
+  const countLine = (typeof v.sighting_count === "number")
+    ? `<div style="margin-top:8px;">
+         <strong>${v.sighting_count.toLocaleString()}</strong> sightings recorded
+         ${v.sighting_count_confidence
+           ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Confidence: ${v.sighting_count_confidence}</div>`
+           : ""}
+         ${yearRangeHtml(v)}
+       </div>`
+    : (typeof v.tow_occurrence_count === "number")
+    ? `<div style="margin-top:8px;">
+         Present in <strong>${v.tow_occurrence_count.toLocaleString()}</strong> of
+         ${v.total_tows_surveyed.toLocaleString()} tows
+         ${typeof v.mean_abundance_when_present === "number"
+           ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Mean density when present: ${v.mean_abundance_when_present.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; Brinton &amp; Townsend Euphausiid Database</div>`
+           : ""}
+         ${typeof v.mean_abundance === "number"
+           ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Mean community abundance: ${v.mean_abundance.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; CalCOFI ZooDB</div>`
+           : ""}
+         ${v.data_note ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">${v.data_note}</div>` : ""}
+         ${yearRangeHtml(v)}
+         ${v.taxonomy_note
+           ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">${v.taxonomy_note}</div>`
+           : ""}
+       </div>`
+    : "";
+
+  // Full species breakdown, grouped by taxon, for generic "Species" fields
+  // (CAC_FI_SBAS_obs::species, CAC_FI_SBAS_sp::species) -- lives directly
+  // on the variable object as v.species_breakdown.
+  const speciesBreakdown = renderSpeciesBreakdown(v.species_breakdown);
 
   body.innerHTML = `
-
-    <div class="variable-description">
-
-      ${v.description || ""}
-
-    </div>
-
     <div class="variable-meta">
-
-      <div>
-        <strong>Dataset:</strong>
-        ${v.dataset_name || ""}
-      </div>
-
-      <div>
-        <strong>Provider:</strong>
-        ${v.provider || ""}
-      </div>
-
-      <div>
-        <strong>Platform:</strong>
-        ${v.platform || ""}
-      </div>
-
-      ${v.units
-      ? `
-          <div>
-            <strong>Units:</strong>
-            ${v.units}
-          </div>
-        `
-      : ""
-    }
-
+      <div><strong>Dataset:</strong> ${v.dataset_name || ""}</div>
+      ${v.provider ? `<div><strong>Provider:</strong> ${v.provider}</div>` : ""}
+      <div><strong>Platform:</strong> ${platformLabel}</div>
+      ${v.units ? `<div><strong>Units:</strong> ${v.units}</div>` : ""}
+      ${v.description && v.description !== v.display_name
+        ? `<div style="margin-top:8px;color:var(--muted);font-size:11px;">${v.description}</div>`
+        : ""}
+      ${countLine}
+      ${speciesBreakdown}
+      <div id="decade-breakdown-slot"></div>
     </div>
   `;
 
+  // Per-station decade breakdown: lazy-fetched, only for euphausiid
+  // variables when a specific station is currently selected.
+  if (v.dataset_id === "euphausiid" && window.currentStation) {
+    const stationId = window.currentStation.station_id;
+    loadStationTimeSeries("euphausiid", "./data/euphausiid_station_decade_means.json")
+      .then(data => {
+        const slot = document.getElementById("decade-breakdown-slot");
+        if (!slot) return; // modal closed before fetch resolved
+        const stationData = data?.[v.variable_name]?.[stationId];
+        slot.innerHTML = renderDecadeBreakdownHtml(stationData);
+      });
+  }
+
   footer.innerHTML = "";
 
-  let url = "#";
+  const url = getDatasetUrl(v);
 
-  try {
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.className = "btn-docs";
+  link.textContent = "Open Dataset ↗";
+  footer.appendChild(link);
 
-    if (
-      v.platform === "erddap"
-    ) {
-
-      url =
-        buildERDDAPUrl(v);
-
-    } else if (
-      v.platform === "euphausiid"
-    ) {
-
-      url =
-        buildEuphausiidUrl(v);
-
-    } else if (
-      v.platform === "zoodb"
-    ) {
-
-      url =
-        buildZooDBUrl(v);
-
-    } else {
-
-      url =
-        v.source?.access_url ||
-        "#";
-    }
-
-  } catch (err) {
-
-    console.error(
-      "URL generation failed:",
-      err
-    );
+  if (warning) {
+    warning.style.display = v.station_based ? "none" : "block";
   }
 
-  if (
-    url &&
-    url.startsWith("http://")
-  ) {
-
-    url =
-      url.replace(
-        "http://",
-        "https://"
-      );
-  }
-
-  console.log(
-    "Generated dataset URL:",
-    url
-  );
-
-  const link =
-    document.createElement("a");
-
-  link.href =
-    url;
-
-  link.target =
-    "_blank";
-
-  link.rel =
-    "noopener noreferrer";
-
-  link.className =
-    "btn-docs";
-
-  link.textContent =
-    "Open Dataset ↗";
-
-  footer.appendChild(
-    link
-  );
-
-  if (!v.station_based) {
-    if (warning) {
-      warning.style.display = "block";
-    }
-  } else {
-    if (warning) {
-      warning.style.display = "none";
-    }
-  }
-
-  // show modal
-  backdrop.style.display =
-    "flex";
+  backdrop.style.display = "flex";
 }
 
 function closeModal(event) {
-
-  // allow backdrop click close
-  if (
-    event &&
-    event.target &&
-    event.target.id !== "modal-backdrop"
-  ) {
-    return;
-  }
-
-  const backdrop =
-    document.getElementById(
-      "modal-backdrop"
-    );
-
-  if (backdrop) {
-    backdrop.style.display =
-      "none";
-  }
-  //clearAll();
+  if (event && event.target && event.target.id !== "modal-backdrop") return;
+  const backdrop = document.getElementById("modal-backdrop");
+  if (backdrop) backdrop.style.display = "none";
 }
 
 async function initializeApp() {
-
   try {
-
     await Promise.all([
       loadStations(),
       loadStationGroups(),
       loadVariables()
     ]);
-
   } catch (err) {
-
-    console.error(
-      "Initialization failed:",
-      err
-    );
-
+    console.error("Initialization failed:", err);
   } finally {
+    const overlay = document.getElementById("loading-overlay");
+    if (overlay) overlay.style.display = "none";
 
-    const overlay =
-      document.getElementById(
-        "loading-overlay"
-      );
-
-    if (overlay) {
-
-      overlay.style.display =
-        "none";
-    }
-
-    if (
-      !localStorage.getItem(
-        "aboutSeen"
-      )
-    ) {
-
+    if (!localStorage.getItem("aboutSeen")) {
       showAboutModal();
-
-      localStorage.setItem(
-        "aboutSeen",
-        "true"
-      );
+      localStorage.setItem("aboutSeen", "true");
     }
   }
 }
 
 function showAboutModal() {
-
-  document.getElementById(
-    "about-backdrop"
-  ).style.display = "flex";
-
-  localStorage.setItem(
-    "aboutSeen",
-    "true"
-  );
+  document.getElementById("about-backdrop").style.display = "flex";
+  localStorage.setItem("aboutSeen", "true");
 }
 
 function hideAboutModal() {
+  document.getElementById("about-backdrop").style.display = "none";
+}
 
-  document.getElementById(
-    "about-backdrop"
-  ).style.display =
-    "none";
+function togglePanel() {
+  const panel = document.getElementById('side-panel');
+  const toggle = document.getElementById('panel-toggle');
+  if (!panel) return;
+  panel.classList.toggle('collapsed');
+  if (toggle) toggle.textContent = panel.classList.contains('collapsed') ? '❮' : '❯';
 }
 
 // start

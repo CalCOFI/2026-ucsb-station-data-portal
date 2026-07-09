@@ -30,7 +30,7 @@ body {
   font-family: 'Space Mono', monospace;
   height: 100vh;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   overflow: hidden;
 }
 
@@ -65,6 +65,17 @@ header {
   font-size: 10px;
   color: var(--muted);
   letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* Fixed, always-visible total station count -- lives here rather than in
+   the per-variable banner/slider text so those can stay short (just "44
+   stations collect X") without the reader mistaking that number for the
+   portal's full station count. */
+.station-total {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1.5px;
   text-transform: uppercase;
 }
 
@@ -119,28 +130,58 @@ a:visited {
   flex: 1;
   position: relative;
   min-width: 250px;
+  max-width: calc(100vw - 48px - min(360px, 40vw));
 }
 
 .search-input {
   width: 100%;
-  background: var(--surface);
+  background: rgba(230, 240, 250, 0.14);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
   font-family: 'Space Mono', monospace;
   font-size: 12px;
-  padding: 8px 14px;
+  padding: 8px 14px 8px 32px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .search-input::placeholder {
-  color: var(--muted);
+  color: rgba(230, 240, 250, 0.65);
 }
 
 .search-input:focus {
   border-color: var(--accent);
   box-shadow: var(--glow);
+}
+
+/* Search icon (drawn with CSS, no image asset needed) */
+.search-wrapper::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid rgba(230, 240, 250, 0.55);
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.search-wrapper::after {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: calc(50% + 5px);
+  width: 6px;
+  height: 1.5px;
+  background: rgba(230, 240, 250, 0.55);
+  transform: rotate(45deg);
+  transform-origin: left center;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .about-backdrop {
@@ -150,10 +191,12 @@ a:visited {
       0,
       0,
       0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: 400;
 }
 
 .about-modal {
@@ -389,10 +432,143 @@ ol {
   display: block;
 }
 
-/* Main layout */
+/* Year range slider — its own full-width bar below the search banner, when
+   the selected variable has real per-station year data (see
+   renderYearSlider in app.js). Hidden by default; JS toggles display: flex.
+   Two <input type="range"> elements are stacked exactly on top of one
+   another over a shared track; each keeps its own value and only its
+   thumb is interactive (the track itself is pointer-events: none), which
+   is the standard no-library way to fake a dual-handle slider. */
+.year-slider {
+  display: none;
+  justify-content: flex-end;
+  padding: 8px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.year-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.year-slider-label {
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  min-width: 34px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.year-range-track {
+  position: relative;
+  width: 306px;
+  max-width: 34vw;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.year-range-bg {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.year-range-fill {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.year-range-track input[type="range"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+  z-index: 1;
+}
+
+.year-range-track input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 2px;
+}
+
+.year-range-track input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--deep);
+  cursor: pointer;
+}
+
+.year-range-track input[type="range"]::-moz-range-track {
+  background: transparent;
+  height: 2px;
+}
+
+.year-range-track input[type="range"]::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--deep);
+  cursor: pointer;
+}
+
+.year-slider-reset {
+  padding: 4px 9px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.year-slider-reset:hover {
+  background: var(--accent);
+  color: var(--deep);
+  border-color: var(--accent);
+}
+
+/* Main layout — left column: header, search bar, map stacked vertically.
+   The side panel is now a full-height sibling (see body's flex-direction: row),
+   so it spans the whole viewport height instead of starting below the header. */
 .main {
   display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -449,7 +625,7 @@ ol {
 }
 
 .panel-header {
-  padding: 20px 20px 14px;
+  padding: 18px 20px 14px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   display: none
@@ -510,6 +686,76 @@ ol {
 .panel-content::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 2px;
+}
+
+/* Variable info block (side panel content) -- redesigned for readability:
+   larger type, higher-contrast body text (was --muted, too dim against
+   the dark background), a prominent solid "Open Dataset" action instead
+   of a subtle ghost button, and the button placed last so it always sits
+   under the rest of the info rather than interrupting it mid-panel. */
+.panel-info-block {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--text);
+  padding: 4px 0;
+}
+
+.panel-info-block b {
+  color: var(--text);
+}
+
+.panel-highlight {
+  color: var(--accent2);
+  font-size: 15px;
+}
+
+.panel-subtext {
+  font-size: 11px;
+  color: var(--text);
+  opacity: 0.75;
+}
+
+.panel-subtext-muted {
+  color: var(--muted);
+}
+
+.panel-station-count {
+  display: block;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 700;
+  margin: 10px 0 18px;
+}
+
+.panel-hint {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+a.panel-open-dataset-btn {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 16px;
+  background: var(--accent);
+  color: var(--deep) !important;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+a.panel-open-dataset-btn:hover {
+  background: #ffffff;
 }
 
 /* Source groups in panel */
@@ -925,4 +1171,809 @@ select optgroup {
   .dropdown-name {
     font-size: 12px;
   }
+}
+/* ============================================
+   BROWSE PANEL — category pill navigation
+   Appears below search bar when no variable
+   is selected. Replaces blank map experience.
+   ============================================ */
+
+.browse-panel {
+  padding: 10px 20px 8px;
+  background: var(--ocean);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.browse-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.browse-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.browse-pill {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.browse-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0, 194, 255, 0.07);
+}
+
+.browse-count {
+  background: rgba(0, 194, 255, 0.12);
+  color: var(--accent);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* dropdown group header (when browsing by category) */
+.dropdown-group-header {
+  padding: 8px 14px 6px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+/* Make dropdown stay open when clicking browse pills */
+.browse-pill:focus { outline: none; }
+
+/* Tighter dropdown group header */
+.dropdown-group-header {
+  padding: 8px 14px 6px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+/* Active pill state */
+.browse-pill.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(0, 194, 255, 0.1);
+}
+
+/* ============================================
+   INVENTORY PANEL — right panel default state
+   Shows "What CalCOFI measures" category list
+   ============================================ */
+
+.panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.inventory-panel {
+  padding: 20px 16px 12px;
+  width: 100%;
+}
+
+.inventory-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.inventory-subtitle {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.inventory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inventory-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 1px solid transparent;
+}
+
+.inventory-row:hover {
+  background: rgba(0, 194, 255, 0.07);
+  border-color: var(--border);
+}
+
+.inventory-icon {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.inventory-label {
+  font-size: 11px;
+  color: var(--text);
+  flex: 1;
+}
+
+.inventory-count {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--accent);
+  background: rgba(0, 194, 255, 0.1);
+  padding: 2px 7px;
+  border-radius: 10px;
+  min-width: 28px;
+  text-align: center;
+}
+
+.inventory-arrow {
+  font-size: 11px;
+  color: var(--muted);
+  transition: color 0.15s, transform 0.15s;
+}
+
+.inventory-row:hover .inventory-arrow {
+  color: var(--accent);
+  transform: translateX(3px);
+}
+
+/* Close button inside dropdown group header */
+.dropdown-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dropdown-close-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  font-family: 'Space Mono', monospace;
+}
+
+.dropdown-close-btn:hover {
+  color: var(--accent);
+}
+
+/* Ensure inventory panel title is visible */
+.inventory-panel {
+  padding: 16px 16px 12px;
+}
+
+/* ============================================
+   FONT UPDATE — Inter for UI, Space Mono for codes
+   ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+body, .panel, .dropdown-item, .inventory-label,
+.browse-pill, .modal-body, .about-content,
+.data-link-name, .var-type-label, .tab-btn {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Keep Space Mono only for station IDs and codes */
+.panel-station-id, .logo-title, .logo-sub,
+.search-input, .inventory-count, .browse-count,
+.panel-coords {
+  font-family: 'Space Mono', monospace;
+}
+
+/* ============================================
+   STATION PANEL — horizontal tabs
+   ============================================ */
+
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 12px 12px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--ocean);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-bottom-color: var(--surface);
+  background: var(--surface);
+}
+
+/* ============================================
+   TAB CONTENT — variable list
+   ============================================ */
+
+.tab-content {
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.var-type-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 0 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.var-type-label:first-child {
+  padding-top: 4px;
+}
+
+.data-link {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.data-link:hover {
+  background: rgba(0, 194, 255, 0.08);
+}
+
+.data-link-name {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 400;
+}
+
+/* Metadata summary line */
+.metadata-summary {
+  margin-top: 16px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.panel-empty-msg {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Better contrast — replace hard-to-read cyan on dark */
+.panel-station-id {
+  color: #e2f4ff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.panel-coords {
+  color: #8ab8cc;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* ============================================
+   FONT SIZE INCREASES
+   ============================================ */
+
+/* Station panel variable rows */
+.data-link-name {
+  font-size: 13px;
+}
+
+/* Tab buttons */
+.tab-btn {
+  font-size: 11px;
+  padding: 6px 12px;
+}
+
+/* Type labels (PHYSICAL, CHEMICAL etc) */
+.var-type-label {
+  font-size: 10px;
+}
+
+/* Station ID and coords */
+.panel-station-id {
+  font-size: 15px;
+}
+
+.panel-coords {
+  font-size: 12px;
+}
+
+/* Inventory panel */
+.inventory-label {
+  font-size: 13px;
+}
+
+.inventory-title {
+  font-size: 11px;
+}
+
+.inventory-subtitle {
+  font-size: 11px;
+}
+
+/* Dropdown items */
+.dropdown-name {
+  font-size: 13px;
+}
+
+/* Browse pills */
+.browse-pill {
+  font-size: 11px;
+}
+
+/* Search input placeholder */
+.search-input {
+  font-size: 13px;
+}
+
+/* Modal */
+.modal-title {
+  font-size: 16px;
+}
+
+.modal-body {
+  font-size: 13px;
+}
+
+/* Back button — single slot at top of panel header, shown for
+   both "back to station" and "back to all categories" */
+.panel-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+  text-align: left;
+}
+
+.panel-back-btn:hover {
+  background: rgba(0, 194, 255, 0.08);
+  border-color: var(--accent);
+}
+
+/* ============================================
+   READABILITY OVERHAUL
+   ============================================ */
+
+/* Browse pills — bigger, bolder */
+.browse-pill {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  color: #c8dde8;
+}
+
+/* Pill counts — brighter, more readable */
+.browse-count {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Inventory panel rows — bigger text */
+.inventory-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ddeef5;
+}
+
+/* Inventory counts — white, bold, readable */
+.inventory-count {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 30px;
+  text-align: center;
+}
+
+/* Inventory title */
+.inventory-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.inventory-subtitle {
+  font-size: 12px;
+  color: #8ab8cc;
+}
+
+/* Search input */
+.search-input {
+  font-size: 14px;
+}
+
+/* Dropdown items */
+.dropdown-name {
+  font-size: 13px;
+  font-weight: 400;
+  color: #ddeef5;
+}
+
+/* Station panel variable rows */
+.data-link-name {
+  font-size: 13px;
+  font-weight: 400;
+  color: #ddeef5;
+}
+
+/* Tab buttons */
+.tab-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 13px;
+}
+
+/* Type section labels */
+.var-type-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  color: #7a9eb0;
+}
+
+/* Station ID — bigger, off-white */
+.panel-station-id {
+  font-size: 16px;
+  font-weight: 700;
+  color: #e8f4ff;
+}
+
+/* Coords */
+.panel-coords {
+  font-size: 12px;
+  color: #7a9eb0;
+}
+
+/* Browse category label */
+.browse-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.8px;
+  color: #7a9eb0;
+}
+
+/* Modal */
+.modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #e8f4ff;
+}
+
+.modal-body {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #c8dde8;
+}
+
+/* Search banner */
+.search-banner {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ============================================
+   TARGETED FIXES — count badges + slight size bump
+   ============================================ */
+
+/* COUNT BADGES — white bold, not cyan */
+.browse-count,
+.inventory-count {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+}
+
+/* Slight size bump across the board */
+body {
+  font-size: 14px;
+}
+
+.browse-pill {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+.inventory-label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.data-link-name {
+  font-size: 13px !important;
+}
+
+.dropdown-name {
+  font-size: 13px !important;
+}
+
+.tab-btn {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+.search-input {
+  font-size: 14px !important;
+}
+
+.var-type-label {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+}
+
+/* ============================================
+   ABOUT MODAL — constrain width
+   ============================================ */
+.about-modal {
+  max-width: 650px !important;
+  width: 90% !important;
+  margin: auto;
+}
+
+/* Hide browse pills row — redundant with right panel inventory */
+.browse-panel {
+  display: none !important;
+}
+
+/* Remove icon column — no emojis */
+.inventory-icon {
+  display: none;
+}
+
+.inventory-row {
+  padding: 9px 12px;
+}
+
+/* Inventory panel — left align, not centered */
+.inventory-panel {
+  text-align: left;
+}
+
+.inventory-title {
+  text-align: left;
+}
+
+.inventory-subtitle {
+  text-align: left;
+}
+
+.inventory-row {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.inventory-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* Also left-align the What CalCOFI Measures header */
+#panel-empty .inventory-panel {
+  text-align: left;
+}
+
+/* ============================================
+   PROFESSIONAL REDESIGN — "What CalCOFI Measures" panel
+   Centered header, refined typography, cleaner row dividers
+   ============================================ */
+
+.inventory-panel {
+  padding: 28px 22px 16px;
+}
+
+.inventory-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-align: center;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.inventory-title::after {
+  content: "";
+  display: block;
+  width: 32px;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+  margin: 10px auto 0;
+  border-radius: 2px;
+}
+
+.inventory-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: center;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 85%;
+  margin: 0 auto 24px;
+}
+
+.inventory-list {
+  gap: 0;
+}
+
+.inventory-row {
+  padding: 10px 8px;
+  gap: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+}
+
+.inventory-row:last-child {
+  border-bottom: none;
+}
+
+.inventory-row:hover {
+  background: rgba(0, 194, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(0, 194, 255, 0.15);
+}
+
+.inventory-row-open {
+  background: rgba(0, 194, 255, 0.08);
+}
+
+.inventory-sublist {
+  padding: 2px 8px 10px 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.inventory-subitem {
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inventory-subitem:hover {
+  background: rgba(0, 194, 255, 0.08);
+}
+
+.inventory-subitem-name {
+  font-size: 12px;
+  color: #c8dde8;
+}
+
+.inventory-subitem-meta {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.inventory-subitem-count {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.inventory-label {
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.1px;
+  color: #e4f1f8;
+}
+
+.inventory-count {
+  background: rgba(0, 194, 255, 0.14) !important;
+  color: var(--accent) !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  min-width: 32px;
+  padding: 3px 9px;
+}
+
+.inventory-arrow {
+  font-size: 12px;
+}
+
+/* ============================================
+   NAME EMPHASIS — make parameter names stand out
+   more clearly from their dataset/meta text
+   ============================================ */
+.dropdown-name {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+}
+
+.inventory-subitem-name {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
 }

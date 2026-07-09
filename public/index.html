@@ -14,57 +14,65 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=19" />
 </head>
 
 <body>
 
-  <header>
-    <div class="logo">
-      <span class="logo-title">CalCOFI</span>
-      <span class="logo-sub">Station Data Portal</span>
-    </div>
-  </header>
-
-  <div class="search-bar">
-    <div class="search-wrapper">
-      <input class="search-input" id="search" type="text"
-        placeholder="Search variables (e.g. chlorophyll, nitrate, salinity)…" autocomplete="off" />
-      <div class="dropdown" id="dropdown"></div>
-    </div>
-    <div class="category-filters" id="category-filters"></div>
-
-    <button class="clear-btn" id="clear-btn" onclick="clearAll()">
-
-      ✕ Clear
-
-    </button>
-  </div>
-
-  <div class="search-banner" id="search-banner"></div>
-
   <div class="main">
-    <div id="map"></div>
-    <div id="panel-resizer" class="panel-resizer">
-    </div>
-    <aside id="side-panel" class="panel">
-      <div class="panel" id="panel">
-        <div id="panel-toggle" class="panel-toggle" onclick="togglePanel()">
-          ❯
-        </div>
-        <div class="panel-empty" id="panel-empty">
-          <div class="panel-empty-icon">🌊</div>
-          <div class="panel-empty-text">Click any station<br>to explore its data. Note some stations have no data & will
-            be blank</div>
-        </div>
-        <div class="panel-header" id="panel-header" style="display:none">
-          <div class="panel-station-id" id="panel-station-id"></div>
-          <div class="panel-coords" id="panel-coords"></div>
-        </div>
-        <div class="panel-content" id="panel-content"></div>
+    <header>
+      <div class="logo">
+        <span class="logo-title">CalCOFI</span>
+        <span class="logo-sub">Station Data Portal</span>
       </div>
-    </aside>
+      <div class="station-total" id="station-total"></div>
+    </header>
+
+    <div class="search-bar">
+      <div class="search-wrapper">
+        <input class="search-input" id="search" type="text"
+          placeholder="Search variables (e.g. chlorophyll, nitrate, salinity)…" autocomplete="off" />
+        <div class="dropdown" id="dropdown"></div>
+      </div>
+      <div class="category-filters" id="category-filters"></div>
+
+      <button class="clear-btn" id="clear-btn" onclick="clearAll()">
+
+        ✕ Clear
+
+      </button>
+    </div>
+
+    <div class="search-banner" id="search-banner"></div>
+
+    <div class="year-slider" id="year-slider"></div>
+
+    <!-- Browse panel: shown when no variable is selected -->
+    <div id="browse-panel" class="browse-panel"></div>
+
+    <div id="map"></div>
   </div>
+
+  <div id="panel-resizer" class="panel-resizer">
+  </div>
+  <aside id="side-panel" class="panel">
+    <div class="panel" id="panel">
+      <div id="panel-toggle" class="panel-toggle" onclick="togglePanel()">
+        ❯
+      </div>
+      <div class="panel-empty" id="panel-empty">
+        <div class="panel-empty-icon">🌊</div>
+        <div class="panel-empty-text">Click any station<br>to explore its data. Note some stations have no data & will
+          be blank</div>
+      </div>
+      <div class="panel-header" id="panel-header" style="display:none">
+        <button id="panel-back-inventory" class="panel-back-btn" onclick="resetPanelUI()">← All Categories</button>
+        <div class="panel-station-id" id="panel-station-id"></div>
+        <div class="panel-coords" id="panel-coords"></div>
+      </div>
+      <div class="panel-content" id="panel-content"></div>
+    </div>
+  </aside>
 
   <div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
     <div class="modal" id="modal">
@@ -172,7 +180,7 @@
     ⓘ
   </button>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=30"></script>
 </body>
 
 </html>
