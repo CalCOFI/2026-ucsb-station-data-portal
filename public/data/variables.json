@@ -110190,7 +110190,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 3.247,
+    "max_abundance_recorded": 24.89
   },
   {
     "variable_id": "euphausiid::Euphausia_diomedeae",
@@ -110345,7 +110347,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.1,
+    "max_abundance_recorded": 0.1
   },
   {
     "variable_id": "euphausiid::Euphausia_distinguenda",
@@ -110500,7 +110504,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.21,
+    "max_abundance_recorded": 0.31
   },
   {
     "variable_id": "euphausiid::Euphausia_eximia",
@@ -110655,7 +110661,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 3.168,
+    "max_abundance_recorded": 71.87
   },
   {
     "variable_id": "euphausiid::Euphausia_gibboides",
@@ -110810,7 +110818,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 6.724,
+    "max_abundance_recorded": 101.79
   },
   {
     "variable_id": "euphausiid::Euphausia_hemigibba",
@@ -110965,7 +110975,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 1.429,
+    "max_abundance_recorded": 9.93
   },
   {
     "variable_id": "euphausiid::Euphausia_lamelligera",
@@ -111120,7 +111132,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.07,
+    "max_abundance_recorded": 0.13
   },
   {
     "variable_id": "euphausiid::Euphausia_mutica",
@@ -111275,7 +111289,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 1.24,
+    "max_abundance_recorded": 12.49
   },
   {
     "variable_id": "euphausiid::Euphausia_pacifica",
@@ -111430,7 +111446,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 793.327,
+    "max_abundance_recorded": 12204.0
   },
   {
     "variable_id": "euphausiid::Euphausia_recurva",
@@ -111585,7 +111603,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 13.044,
+    "max_abundance_recorded": 154.08
   },
   {
     "variable_id": "euphausiid::Euphausia_tenera",
@@ -111740,15 +111760,17 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.127,
+    "max_abundance_recorded": 0.27
   },
   {
     "variable_id": "euphausiid::Hansarsia_atlantica",
     "dataset_id": "euphausiid",
     "dataset_name": "CalCOFI Euphausiid Database",
     "entity_type": "taxon",
-    "variable_name": "Hansarsia atlantica",
-    "display_name": "Hansarsia atlantica",
+    "variable_name": "Nematoscelis atlantica",
+    "display_name": "Nematoscelis atlantica",
     "description": "Euphausiid species observation",
     "units": "count",
     "platform": "oceaninformatics",
@@ -111879,7 +111901,7 @@
     ],
     "keywords": [
       "krill",
-      "Hansarsia atlantica",
+      "Nematoscelis atlantica",
       "zooplankton",
       "Hansarsia",
       "euphausiid"
@@ -111889,21 +111911,23 @@
       "phylum": "Arthropoda",
       "class": "Malacostraca",
       "order": "Euphausiacea",
-      "genus": "Hansarsia",
+      "genus": "Nematoscelis",
       "species": "atlantica"
     },
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.927,
+    "max_abundance_recorded": 23.36
   },
   {
     "variable_id": "euphausiid::Hansarsia_difficilis",
     "dataset_id": "euphausiid",
     "dataset_name": "CalCOFI Euphausiid Database",
     "entity_type": "taxon",
-    "variable_name": "Hansarsia difficilis",
-    "display_name": "Hansarsia difficilis",
+    "variable_name": "Nematoscelis difficilis",
+    "display_name": "Nematoscelis difficilis",
     "description": "Euphausiid species observation",
     "units": "count",
     "platform": "oceaninformatics",
@@ -112037,28 +112061,30 @@
       "zooplankton",
       "Hansarsia",
       "euphausiid",
-      "Hansarsia difficilis"
+      "Nematoscelis difficilis"
     ],
     "taxonomy": {
       "kingdom": "Animalia",
       "phylum": "Arthropoda",
       "class": "Malacostraca",
       "order": "Euphausiacea",
-      "genus": "Hansarsia",
+      "genus": "Nematoscelis",
       "species": "difficilis"
     },
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 147.125,
+    "max_abundance_recorded": 605.8
   },
   {
     "variable_id": "euphausiid::Hansarsia_gracilis",
     "dataset_id": "euphausiid",
     "dataset_name": "CalCOFI Euphausiid Database",
     "entity_type": "taxon",
-    "variable_name": "Hansarsia gracilis",
-    "display_name": "Hansarsia gracilis",
+    "variable_name": "Nematoscelis gracilis",
+    "display_name": "Nematoscelis gracilis",
     "description": "Euphausiid species observation",
     "units": "count",
     "platform": "oceaninformatics",
@@ -112192,28 +112218,30 @@
       "zooplankton",
       "euphausiid",
       "Hansarsia",
-      "Hansarsia gracilis"
+      "Nematoscelis gracilis"
     ],
     "taxonomy": {
       "kingdom": "Animalia",
       "phylum": "Arthropoda",
       "class": "Malacostraca",
       "order": "Euphausiacea",
-      "genus": "Hansarsia",
+      "genus": "Nematoscelis",
       "species": "gracilis"
     },
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.147,
+    "max_abundance_recorded": 0.32
   },
   {
     "variable_id": "euphausiid::Hansarsia_microps",
     "dataset_id": "euphausiid",
     "dataset_name": "CalCOFI Euphausiid Database",
     "entity_type": "taxon",
-    "variable_name": "Hansarsia microps",
-    "display_name": "Hansarsia microps",
+    "variable_name": "Nematoscelis microps",
+    "display_name": "Nematoscelis microps",
     "description": "Euphausiid species observation",
     "units": "count",
     "platform": "oceaninformatics",
@@ -112346,7 +112374,7 @@
       "krill",
       "zooplankton",
       "Hansarsia",
-      "Hansarsia microps",
+      "Nematoscelis microps",
       "euphausiid"
     ],
     "taxonomy": {
@@ -112354,21 +112382,23 @@
       "phylum": "Arthropoda",
       "class": "Malacostraca",
       "order": "Euphausiacea",
-      "genus": "Hansarsia",
+      "genus": "Nematoscelis",
       "species": "microps"
     },
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.0,
+    "max_abundance_recorded": 0.0
   },
   {
     "variable_id": "euphausiid::Hansarsia_tenella",
     "dataset_id": "euphausiid",
     "dataset_name": "CalCOFI Euphausiid Database",
     "entity_type": "taxon",
-    "variable_name": "Hansarsia tenella",
-    "display_name": "Hansarsia tenella",
+    "variable_name": "Nematoscelis tenella",
+    "display_name": "Nematoscelis tenella",
     "description": "Euphausiid species observation",
     "units": "count",
     "platform": "oceaninformatics",
@@ -112502,20 +112532,22 @@
       "zooplankton",
       "euphausiid",
       "Hansarsia",
-      "Hansarsia tenella"
+      "Nematoscelis tenella"
     ],
     "taxonomy": {
       "kingdom": "Animalia",
       "phylum": "Arthropoda",
       "class": "Malacostraca",
       "order": "Euphausiacea",
-      "genus": "Hansarsia",
+      "genus": "Nematoscelis",
       "species": "tenella"
     },
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.817,
+    "max_abundance_recorded": 6.43
   },
   {
     "variable_id": "euphausiid::Nematobrachion_boopis",
@@ -112670,7 +112702,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.03,
+    "max_abundance_recorded": 0.03
   },
   {
     "variable_id": "euphausiid::Nematobrachion_flexipes",
@@ -112825,7 +112859,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 1.067,
+    "max_abundance_recorded": 7.25
   },
   {
     "variable_id": "euphausiid::Nyctiphanes_simplex",
@@ -112980,7 +113016,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 98.034,
+    "max_abundance_recorded": 1851.47
   },
   {
     "variable_id": "euphausiid::Stylocheiron_abbreviatum",
@@ -113135,7 +113173,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.604,
+    "max_abundance_recorded": 3.61
   },
   {
     "variable_id": "euphausiid::Stylocheiron_affine",
@@ -113290,7 +113330,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 5.052,
+    "max_abundance_recorded": 40.95
   },
   {
     "variable_id": "euphausiid::Stylocheiron_carinatum",
@@ -113445,7 +113487,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.369,
+    "max_abundance_recorded": 1.7
   },
   {
     "variable_id": "euphausiid::Stylocheiron_elongatum",
@@ -113600,7 +113644,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.313,
+    "max_abundance_recorded": 0.71
   },
   {
     "variable_id": "euphausiid::Stylocheiron_longicorne",
@@ -113755,7 +113801,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 11.063,
+    "max_abundance_recorded": 85.99
   },
   {
     "variable_id": "euphausiid::Stylocheiron_maximum",
@@ -113910,7 +113958,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 1.634,
+    "max_abundance_recorded": 10.07
   },
   {
     "variable_id": "euphausiid::Stylocheiron_suhmi",
@@ -114065,7 +114115,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.443,
+    "max_abundance_recorded": 2.15
   },
   {
     "variable_id": "euphausiid::Tessarabrachion_oculatum",
@@ -114220,7 +114272,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.845,
+    "max_abundance_recorded": 4.49
   },
   {
     "variable_id": "euphausiid::Thysanoessa_gregaria",
@@ -114375,7 +114429,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 29.578,
+    "max_abundance_recorded": 223.64
   },
   {
     "variable_id": "euphausiid::Thysanoessa_longipes",
@@ -114530,7 +114586,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 2.658,
+    "max_abundance_recorded": 9.36
   },
   {
     "variable_id": "euphausiid::Thysanoessa_spinifera",
@@ -114685,7 +114743,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 64.714,
+    "max_abundance_recorded": 1634.4
   },
   {
     "variable_id": "euphausiid::Thysanopoda_astylata",
@@ -114840,7 +114900,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.727,
+    "max_abundance_recorded": 5.43
   },
   {
     "variable_id": "euphausiid::Thysanopoda_cornuta",
@@ -114995,7 +115057,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.06,
+    "max_abundance_recorded": 0.06
   },
   {
     "variable_id": "euphausiid::Thysanopoda_cristata",
@@ -115305,7 +115369,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.355,
+    "max_abundance_recorded": 2.72
   },
   {
     "variable_id": "euphausiid::Thysanopoda_monacantha",
@@ -115460,7 +115526,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.21,
+    "max_abundance_recorded": 0.61
   },
   {
     "variable_id": "euphausiid::Thysanopoda_obtusifrons",
@@ -115615,7 +115683,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.543,
+    "max_abundance_recorded": 1.41
   },
   {
     "variable_id": "euphausiid::Thysanopoda_orientalis",
@@ -115770,7 +115840,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.397,
+    "max_abundance_recorded": 6.74
   },
   {
     "variable_id": "euphausiid::Thysanopoda_pectinata",
@@ -115925,7 +115997,9 @@
     "source": {
       "access_url": "https://oceaninformatics.ucsd.edu/euphausiid/",
       "metadata_url": ""
-    }
+    },
+    "mean_abundance_when_present": 0.213,
+    "max_abundance_recorded": 0.41
   },
   {
     "variable_id": "zoodb::All_genera_and_species",
