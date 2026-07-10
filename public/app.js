@@ -855,15 +855,46 @@ function buildCategoryRows() {
   return ORDER
     .filter(g => groups[g] && !HIDE_FROM_INVENTORY.has(g))
     .map(g => {
-      const count = groups[g].length;
+      // Compute the real, filtered count up front (not the raw
+      // groups[g].length) -- otherwise a category made up entirely of
+      // excluded entries (e.g. dataset-level placeholder stubs like the
+      // old Genomics/eDNA and Raw Data & External Links rows) still shows
+      // a nonzero badge and an expandable row that opens to "No
+      // parameters found." If nothing real is left after filtering, skip
+      // the category entirely, same as the QC/metadata groups already do.
+      const visibleVars = groups[g].filter(v => !isExcludedFromBrowse(v));
+      const count = visibleVars.length;
+      if (count === 0) return "";
+
       const icon = CATEGORY_ICONS[g] || "📊";
       const safeG = g.replace(/'/g, "\\'");
       const isOpen = window.expandedInventoryGroup === g;
       const arrow = isOpen ? "↓" : "→";
 
       const groupedSubVars = isOpen
-        ? groupVariablesByLabel(groups[g].filter(v => !isExcludedFromBrowse(v)))
+        ? groupVariablesByLabel(visibleVars)
         : [];
+
+      // Zooplankton-specific ordering: lead with the community-wide "All
+      // Genera & Species" entry, then individual zoodb species
+      // alphabetically, and push the handful of non-species datasets
+      // (zooplankton biovolume, phytoplankton visual estimates, Dungeness
+      // crab postlarvae, Stanford zooplankton data) to the bottom -- they
+      // aren't part of the same species list and were otherwise just
+      // appearing first by accident of insertion order in variables.json.
+      if (g === "Zooplankton" && isOpen) {
+        const tier = (entries) => {
+          const { v, rawLabel } = entries[0];
+          if (v.dataset_id === "zoodb" && rawLabel === "All genera and species") return 0;
+          if (v.dataset_id === "zoodb") return 1;
+          return 2;
+        };
+        groupedSubVars.sort((a, b) => {
+          const ta = tier(a), tb = tier(b);
+          if (ta !== tb) return ta - tb;
+          return fixDisplayName(a[0].rawLabel).localeCompare(fixDisplayName(b[0].rawLabel));
+        });
+      }
 
       const subItems = isOpen
         ? groupedSubVars.map(entries => {
@@ -1195,19 +1226,41 @@ function isExactExclude(displayName) {
   return EXACT_EXCLUDE.has(n);
 }
 
+// Raw log/reference-table columns from the seabird datasets that are
+// redundant now that seabird_observations_underway provides real
+// per-species entries (Sooty Shearwater, Common Murre, etc. with actual
+// sighting counts). "species"/"behavior" are single generic columns on
+// the raw observation log (not one row per species), and "type"/
+// "common_name"/"scientific_name" are columns on the species lookup
+// table -- neither is a measured parameter in its own right anymore.
+const EXCLUDE_VARIABLE_IDS = new Set([
+  "cac_fi_sbas_obs::behavior",
+  "cac_fi_sbas_obs::species",
+  "cac_fi_sbas_sp::species",
+  "cac_fi_sbas_sp::type",
+  "cac_fi_sbas_sp::common_name",
+  "cac_fi_sbas_sp::scientific_name",
+]);
+
 function isExcludedFromBrowse(v) {
   const n = (v.display_name || "").toLowerCase();
   return isExactExclude(v.display_name) ||
     EXCLUDE_DISPLAY_KEYWORDS.some(k => n.includes(k)) ||
     isMetadataField(v.display_name) ||
     isRemovedField(v.display_name) ||
-    // Dataset-level placeholder entries (e.g. a stub row named "Krill
-    // (Euphausiids)" whose only content is the dataset itself, left over
-    // from before that dataset had real per-variable data). These aren't
-    // a measured parameter -- showing one is either empty clutter or, as
-    // with Krill, a confusing duplicate of the real dataset that DOES
-    // have its variables broken out (dataset_id "euphausiid").
-    v.entity_type === "scientific_dataset";
+    EXCLUDE_VARIABLE_IDS.has((v.variable_id || "").toLowerCase()) ||
+    // NOTE: only these two specific dataset_ids -- not every entity_type
+    // "scientific_dataset" stub (see the earlier comment history on this
+    // function for why that blanket approach was wrong). Both of these
+    // are genuine duplicates, now that real per-species data exists for
+    // the same underlying dataset:
+    //  - "/euphausiid/save.php?mode=save": superseded by "euphausiid"
+    //    (39 species, real station coverage)
+    //  - "knb-lter-cce.262.2": superseded by
+    //    "marine_mammal_sightings_underway" (23 species, real sighting
+    //    counts) -- same LTER package 262, just broken out by species
+    v.dataset_id === "/euphausiid/save.php?mode=save" ||
+    v.dataset_id === "knb-lter-cce.262.2";
 }
 
 // Shared by search dropdown AND the category accordion: groups variables
@@ -1533,22 +1586,36 @@ function renderVariableSelectionPanel(v) {
     backBtn.style.display = 'block';
   }
 
-  const countLine = (typeof v.sighting_count === "number")
-    ? `<span class="panel-highlight"><b>${v.sighting_count.toLocaleString()}</b> sightings recorded</span><br>
-       ${yearRangeHtml(v)}<br>`
-    : (typeof v.tow_occurrence_count === "number")
-    ? `<span class="panel-highlight">Present in <b>${v.tow_occurrence_count.toLocaleString()}</b> of ${v.total_tows_surveyed.toLocaleString()} tows</span><br>
-       ${typeof v.mean_abundance_when_present === "number"
-         ? `<span class="panel-subtext">Mean density when present: ${v.mean_abundance_when_present.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; Brinton &amp; Townsend Euphausiid Database</span><br>`
-         : ""}
-       ${typeof v.mean_abundance === "number"
-         ? `<span class="panel-subtext">Mean community abundance: ${v.mean_abundance.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; CalCOFI ZooDB</span><br>`
-         : ""}
-       ${v.data_note ? `<span class="panel-subtext panel-subtext-muted">${v.data_note}</span><br>` : ""}
-       ${yearRangeHtml(v)}
-       ${v.taxonomy_note ? `<span class="panel-subtext">${v.taxonomy_note}</span><br>` : ""}
-       <br>`
-    : "";
+  // Each stat below is independent -- a variable can have any subset of
+  // these (a ZooDB community entry has mean_abundance but no
+  // tow_occurrence_count; a euphausiid species has tow_occurrence_count
+  // but no sighting_count; etc). Previously this was an if/else-if
+  // chain, which meant mean_abundance (ZooDB) only rendered when
+  // tow_occurrence_count (euphausiid-only) was ALSO present -- so it
+  // silently never showed for ZooDB at all, even with real data.
+  const countLineParts = [
+    typeof v.sighting_count === "number"
+      ? `<span class="panel-highlight"><b>${v.sighting_count.toLocaleString()}</b> sightings recorded</span><br>`
+      : "",
+    typeof v.tow_occurrence_count === "number"
+      ? `<span class="panel-highlight">Present in <b>${v.tow_occurrence_count.toLocaleString()}</b> of ${v.total_tows_surveyed.toLocaleString()} tows</span><br>`
+      : "",
+    typeof v.cumulative_abundance === "number"
+      ? `<span class="panel-subtext">Cumulative abundance: ${v.cumulative_abundance.toLocaleString()} per m² &mdash; Brinton &amp; Townsend Euphausiid Database</span><br>`
+      : "",
+    typeof v.mean_abundance_when_present === "number"
+      ? `<span class="panel-subtext">Mean density when present: ${v.mean_abundance_when_present.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; Brinton &amp; Townsend Euphausiid Database</span><br>`
+      : "",
+    typeof v.mean_abundance === "number"
+      ? `<span class="panel-subtext">Mean community abundance: ${v.mean_abundance.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; CalCOFI ZooDB</span><br>`
+      : "",
+    v.data_note ? `<span class="panel-subtext panel-subtext-muted">${v.data_note}</span><br>` : "",
+    yearRangeHtml(v),
+    v.taxonomy_note ? `<span class="panel-subtext">${v.taxonomy_note}</span><br>` : "",
+  ].filter(Boolean);
+
+  const countLine = countLineParts.length ? countLineParts.join("\n       ") + "<br>" : "";
+
 
   const stationCount = (v.station_years && Object.keys(v.station_years).length > 0)
     ? Object.keys(v.station_years).length
@@ -2084,31 +2151,37 @@ async function openVariableModal(v) {
   // Single-species sample count (e.g. individual marine mammal species
   // variables like marine_mammal_sightings_underway::blue_whale)
 
-  const countLine = (typeof v.sighting_count === "number")
-    ? `<div style="margin-top:8px;">
-         <strong>${v.sighting_count.toLocaleString()}</strong> sightings recorded
-         ${v.sighting_count_confidence
-           ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Confidence: ${v.sighting_count_confidence}</div>`
-           : ""}
-         ${yearRangeHtml(v)}
-       </div>`
-    : (typeof v.tow_occurrence_count === "number")
-    ? `<div style="margin-top:8px;">
-         Present in <strong>${v.tow_occurrence_count.toLocaleString()}</strong> of
-         ${v.total_tows_surveyed.toLocaleString()} tows
-         ${typeof v.mean_abundance_when_present === "number"
-           ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Mean density when present: ${v.mean_abundance_when_present.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; Brinton &amp; Townsend Euphausiid Database</div>`
-           : ""}
-         ${typeof v.mean_abundance === "number"
-           ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Mean community abundance: ${v.mean_abundance.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; CalCOFI ZooDB</div>`
-           : ""}
-         ${v.data_note ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">${v.data_note}</div>` : ""}
-         ${yearRangeHtml(v)}
-         ${v.taxonomy_note
-           ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">${v.taxonomy_note}</div>`
-           : ""}
-       </div>`
+  // Same independence fix as the other countLine above: each stat is
+  // its own optional line rather than mean_abundance (ZooDB) being
+  // trapped inside the tow_occurrence_count (euphausiid-only) branch.
+  const countLineParts2 = [
+    typeof v.sighting_count === "number"
+      ? `<strong>${v.sighting_count.toLocaleString()}</strong> sightings recorded`
+      : "",
+    typeof v.sighting_count === "number" && v.sighting_count_confidence
+      ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Confidence: ${v.sighting_count_confidence}</div>`
+      : "",
+    typeof v.tow_occurrence_count === "number"
+      ? `Present in <strong>${v.tow_occurrence_count.toLocaleString()}</strong> of ${v.total_tows_surveyed.toLocaleString()} tows`
+      : "",
+    typeof v.cumulative_abundance === "number"
+      ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Cumulative abundance: ${v.cumulative_abundance.toLocaleString()} per m² &mdash; Brinton &amp; Townsend Euphausiid Database</div>`
+      : "",
+    typeof v.mean_abundance_when_present === "number"
+      ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Mean density when present: ${v.mean_abundance_when_present.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; Brinton &amp; Townsend Euphausiid Database</div>`
+      : "",
+    typeof v.mean_abundance === "number"
+      ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">Mean community abundance: ${v.mean_abundance.toLocaleString()} per m² (max recorded: ${v.max_abundance_recorded.toLocaleString()}) &mdash; CalCOFI ZooDB</div>`
+      : "",
+    v.data_note ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">${v.data_note}</div>` : "",
+    yearRangeHtml(v),
+    v.taxonomy_note ? `<div style="color:var(--muted);font-size:10px;margin-top:2px;">${v.taxonomy_note}</div>` : "",
+  ].filter(Boolean);
+
+  const countLine = countLineParts2.length
+    ? `<div style="margin-top:8px;">${countLineParts2.join("\n         ")}</div>`
     : "";
+
 
   // Full species breakdown, grouped by taxon, for generic "Species" fields
   // (CAC_FI_SBAS_obs::species, CAC_FI_SBAS_sp::species) -- lives directly
@@ -2130,8 +2203,9 @@ async function openVariableModal(v) {
     </div>
   `;
 
-  // Per-station decade breakdown: lazy-fetched, only for euphausiid
-  // variables when a specific station is currently selected.
+  // Per-station decade breakdown: lazy-fetched, for euphausiid species
+  // and the ZooDB community-wide "All genera and species" entry, when a
+  // specific station is currently selected.
   if (v.dataset_id === "euphausiid" && window.currentStation) {
     const stationId = window.currentStation.station_id;
     loadStationTimeSeries("euphausiid", "./data/euphausiid_station_decade_means.json")
@@ -2139,6 +2213,15 @@ async function openVariableModal(v) {
         const slot = document.getElementById("decade-breakdown-slot");
         if (!slot) return; // modal closed before fetch resolved
         const stationData = data?.[v.variable_name]?.[stationId];
+        slot.innerHTML = renderDecadeBreakdownHtml(stationData);
+      });
+  } else if (v.dataset_id === "zoodb" && v.display_name === "All genera and species" && window.currentStation) {
+    const stationId = window.currentStation.station_id;
+    loadStationTimeSeries("zoodb", "./data/zoodb_station_decade_means.json")
+      .then(data => {
+        const slot = document.getElementById("decade-breakdown-slot");
+        if (!slot) return; // modal closed before fetch resolved
+        const stationData = data?.["All genera and species"]?.[stationId];
         slot.innerHTML = renderDecadeBreakdownHtml(stationData);
       });
   }
