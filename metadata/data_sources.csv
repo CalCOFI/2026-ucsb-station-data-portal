@@ -1,18 +1,18 @@
 ﻿dataset_id,name,url,platform,base_url,station_based
 erdCalCOFIcufes,CalCOFI NOAA Continuous Underway Fish-Egg Sampler (CUFES),https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIcufes.html,erddap,https://coastwatch.pfeg.noaa.gov/,FALSE
-erdCalCOFIeggcnt,CalCOFI NOAA Fish Egg Counts ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIeggcnt.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
-erdCalCOFIeggstg,CalCOFI NOAA Fish Egg Stages ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIeggstg.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+erdCalCOFIeggcnt,CalCOFI NOAA Fish Egg Counts ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIeggcnt.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+erdCalCOFIeggstg,CalCOFI NOAA Fish Egg Stages ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIeggstg.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
 erdCalCOFIinvcnt,Invertebrate count (Cephalopods),https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIinvcnt.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
 erdCalCOFIinvsiz,Invertebrate size (Cephalopods),https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIinvsiz.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
-erdCalCOFIlrvcnt,CalCOFI NOAA Fish Larvae Counts ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIlrvcnt.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
-erdCalCOFIlrvsiz,CalCOFI NOAA Fish Larvae Sizes ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIlrvsiz.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
-erdCalCOFIlrvstg,CalCOFI NOAA Fish Larvae Stages ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIlrvstg.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
-siocalcofiHydroBottle,CalCOFI SIO Hydrographic Bottle Data ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/siocalcofiHydroBottle.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
-siocalcofiHydroCast,CalCOFI SIO Hydrographic Cast Data ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/siocalcofiHydroCast.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+erdCalCOFIlrvcnt,CalCOFI NOAA Fish Larvae Counts ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIlrvcnt.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+erdCalCOFIlrvsiz,CalCOFI NOAA Fish Larvae Sizes ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIlrvsiz.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+erdCalCOFIlrvstg,CalCOFI NOAA Fish Larvae Stages ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIlrvstg.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+siocalcofiHydroBottle,CalCOFI SIO Hydrographic Bottle Data ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/siocalcofiHydroBottle.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+siocalcofiHydroCast,CalCOFI SIO Hydrographic Cast Data ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/siocalcofiHydroCast.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
 erdCalCOFIzoovol,Zooplankton biovolume,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFIzoovol.html,erddap,https://coastwatch.pfeg.noaa.gov/,FALSE
 CAC_FI_SBAS_obs,CalCOFI Farallon Institute Seabirds: Observations,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/CAC_FI_SBAS_obs.html,erddap,https://coastwatch.pfeg.noaa.gov/,FALSE
-CAC_FI_SBAS_sp,CalCOFI Farallon Institute Seabirds: Transect Log,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/CAC_FI_SBAS_sp.html,erddap,https://coastwatch.pfeg.noaa.gov/,FALSE
-CAC_FL_SBAS_tr,CalCOFI Farallon Institute Seabirds: Species Table ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/CAC_FI_SBAS_tr.html,erddap,https://coastwatch.pfeg.noaa.gov/,FALSE
+CAC_FI_SBAS_sp,CalCOFI Farallon Institute Seabirds: Species Table,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/CAC_FI_SBAS_sp.html,erddap,https://coastwatch.pfeg.noaa.gov/,FALSE
+CAC_FI_SBAS_tr,CalCOFI Farallon Institute Seabirds: Transect Log,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/CAC_FI_SBAS_tr.html,erddap,https://coastwatch.pfeg.noaa.gov/,FALSE
 datazoo/catalogs/ccelter/datasets/254,Phytoplankton community (visual estimates),https://oceaninformatics.ucsd.edu/datazoo/catalogs/ccelter/datasets/254,ucsd,https://oceaninformatics.ucsd.edu/,FALSE
 zoodb/save.php?mode=save,Permanent zooplankton (Holoplankton) community: ZooDb,https://oceaninformatics.ucsd.edu/zoodb/,ucsd,https://oceaninformatics.ucsd.edu/,FALSE
 knb-lter-cce.188.4,Dungeness crab postlarvae (Metacarcinus/Cancer magister),https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-cce.188.4,,https://portal.edirepository.org/nis/mapbrowse?packageid=,FALSE
@@ -22,7 +22,7 @@ gov.noaa.nodc:0301029,Carbonate chemistry - bottles,https://www.ncei.noaa.gov/ac
 555783,Genomics of microbial/plankton assemblage (ASVs) - 16S,https://www.ncbi.nlm.nih.gov/bioproject/555783,,https://www.ncbi.nlm.nih.gov/bioproject/,FALSE
 bb9217084g,Mesopelagic Fish,https://library.ucsd.edu/dc/object/bb9217084g,,https://library.ucsd.edu/dc/object/,FALSE
 erdCalCOFItows,CalCOFI NOAA Ichthyoplankton Tows,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFItows.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
-erdCalCOFINOAAhydros,CalCOFI NOAA Additional CTD ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFINOAAhydros.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
+erdCalCOFINOAAhydros,CalCOFI NOAA Additional CTD ,https://coastwatch.pfeg.noaa.gov/erddap/tabledap/erdCalCOFINOAAhydros.html,erddap,https://coastwatch.pfeg.noaa.gov/,TRUE
 ctd-cast-files/,CTD cast data (SIO),https://calcofi.org/data/oceanographic-data/ctd-cast-files/,,https://calcofi.org/data/oceanographic-data/,TRUE
 underway/,Weather - underway/METS data,https://calcofi.org/data/oceanographic-data/underway/,,https://calcofi.org/data/oceanographic-data/,FALSE
 datazoo/catalogs/ccelter/datasets/159,Heterotrophic bacteria & picoautotrophs,https://oceaninformatics.ucsd.edu/datazoo/catalogs/ccelter/datasets/159,,https://oceaninformatics.ucsd.edu/,TRUE
