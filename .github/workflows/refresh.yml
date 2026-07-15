@@ -33,8 +33,10 @@ jobs:
 
       - name: Rebuild coverage data from integrated DB
         run: |
+          REL=$(curl -s https://storage.googleapis.com/calcofi-db/ducklake/releases/latest.txt | tr -d '[:space:]')
+          echo "resolved release: $REL"
           duckdb -c ".read scripts/build_crosswalk.sql"
-          duckdb -c ".read scripts/build_stations.sql"
+          sed "s/__RELEASE__/$REL/g" scripts/build_stations.sql | duckdb
           duckdb -c ".read scripts/build_vars.sql"
 
       - name: Commit if changed
