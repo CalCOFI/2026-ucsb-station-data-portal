@@ -1,7 +1,12 @@
 // create map
-const map = L.map('map', { center: [32.5, -119.5], zoom: 6 })
-  .addLayer(L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap © CARTO', subdomains: 'abcd', maxZoom: 14,
+// basemap: CARTO Dark Matter as its vector GL style, drawn inside Leaflet by
+// maplibre-gl-leaflet (scripts in index.html). CARTO's raster tiles (dark_all)
+// now answer every request with an "API KEY REQUIRED" watermark; the GL styles
+// need no key.
+const map = L.map('map', { center: [32.5, -119.5], zoom: 6, maxZoom: 14 })
+  .addLayer(L.maplibreGL({
+    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    attribution: '© OpenStreetMap contributors © CARTO', interactive: false,
   }));
 
 // default states

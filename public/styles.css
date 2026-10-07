@@ -744,6 +744,11 @@ select optgroup {
 .leaflet-container {
   background: #06121f !important;
 }
+/* the vector basemap's GL container (maplibre-gl-leaflet): maplibre-gl.css makes
+   .maplibregl-map position: relative, which lets it flow below the map box */
+.leaflet-pane > .leaflet-gl-layer.maplibregl-map {
+  position: absolute; left: 0; top: 0;
+}
 
 .leaflet-control-zoom a {
   background: var(--panel) !important;
